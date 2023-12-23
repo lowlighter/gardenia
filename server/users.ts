@@ -4,6 +4,7 @@ import { kv, settings } from "./app.ts"
 import { Status } from "std/http/status.ts"
 import { encodeHex } from "std/encoding/hex.ts"
 import { lang } from "./lang.ts"
+import { system } from "./system.ts"
 
 // Clear sessions
 const entries = kv.list({ prefix: ["sessions"] })
@@ -65,6 +66,9 @@ export async function login(request: Request, session?: string) {
     const session = crypto.randomUUID()
     await kv.set(["sessions", session], username)
     await kv.set(["users", username], { ...user, password: hashed, logged: Date.now() })
+    if (system.autologout) {
+      setTimeout(() => kv.delete(["sessions", session]), Number(system.autologout) * 24 * 60 * 1000)
+    }
     return new Response(JSON.stringify({ success: true, session, user }), { headers })
   }
 }

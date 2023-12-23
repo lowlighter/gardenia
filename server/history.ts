@@ -3,6 +3,7 @@ import { kv } from "./app.ts"
 import { isAllowedTo } from "./users.ts"
 import { lang } from "./lang.ts"
 import { Status } from "std/http/status.ts"
+import { system } from "./system.ts"
 
 // Headers
 const headers = new Headers({ "Content-Type": "application/json" })
@@ -18,6 +19,9 @@ export async function updateHistory(username: string | null, message: string, ro
 
 /** Get history */
 export async function getHistory(request: Request, session?: string) {
+  if (system.public.history) {
+    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+  }
   const params = new URL(request.url).searchParams
   let page = 0
   if (params.has("page")) {

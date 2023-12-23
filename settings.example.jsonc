@@ -20,10 +20,10 @@
   // TP-Link settings
   "tp_username": "no-reply@gardenia.com",
   "tp_password": "********",
-  "tp_ip": [
-    "10.x.x.x",
-    "10.x.x.x",
-    "10.x.x.x",
-    "10.x.x.x"
+  "tp_modules": [
+    { "action": "light", "ip": "10.x.x.x" },
+    { "action": "heat", "ip": "10.x.x.x" },
+    { "action": "aeration", "ip": "10.x.x.x" },
+    { "action": "water", "ip": "10.x.x.x" }
   ]
 }

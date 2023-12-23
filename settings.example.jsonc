@@ -1,0 +1,29 @@
+{
+  // Gardenia server settings
+  "name": "Gardenia",
+  "port": 8080,
+  "admin_password": "admin_default_password",
+  // Video streams
+  "stream_port": [
+    8000
+  ],
+  // Netatmo settings (indoor station must be first)
+  "netatmo_modules": [
+    { "mac": "xx:xx:xx:xx:xx:xx", "type": "indoor" },
+    { "mac": "xx:xx:xx:xx:xx:xx", "type": "outdoor" },
+    { "mac": "xx:xx:xx:xx:xx:xx", "type": "rain" },
+    { "mac": "xx:xx:xx:xx:xx:xx", "type": "wind" }
+  ],
+  "netatmo_refresh_token": "****|********",
+  "netatmo_client_id": "********",
+  "netatmo_client_secret": "********",
+  // TP-Link settings
+  "tp_username": "no-reply@gardenia.com",
+  "tp_password": "********",
+  "tp_ip": [
+    "10.x.x.x",
+    "10.x.x.x",
+    "10.x.x.x",
+    "10.x.x.x"
+  ]
+}

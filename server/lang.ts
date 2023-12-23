@@ -39,6 +39,8 @@ export const lang = {
   camera_name: "Photo",
   temperature: "Température",
   humidity: "Humidité",
+  temperature_out: "Température extérieure",
+  humidity_out: "Humidité extérieure",
   co2: "CO2",
   pressure: "Pression atmosphérique",
   noise: "Bruit",

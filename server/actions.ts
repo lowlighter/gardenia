@@ -16,6 +16,29 @@ for (const action of ["light", "heat", "aeration", "water", "video", "camera"]) 
   await kv.set(["actions", action], { enabled: true, on: true })
 }
 
+// Sync actions states
+for (const { action } of settings.tp_modules as unknown as { action: string }[]) {
+  try {
+    const { state } = await getState(action)
+    const { value } = await kv.get(["actions", action])
+    await kv.set(["actions", action], { ...value!, on: state })
+  } catch (error) {
+    console.log(`failed to get state of ${action}: ${error}`)
+  }
+}
+
+// Start video streams
+for (const ip of settings.videos as unknown as string[]) {
+  if (!ip.includes("0.0.0.0")) {
+    continue
+  }
+  const port = Number(ip.split(":")[1])
+  if (!Number.isNaN(port)) {
+    continue
+  }
+  startVideo(port)
+}
+
 // Headers
 const headers = new Headers({ "Content-Type": "application/json" })
 
@@ -110,13 +133,15 @@ export async function updateAction(request: Request, session?: string) {
 
 /** Set action state */
 async function setState(target: string, state: boolean) {
-  await getState(target)
-  const module = (settings.tp_modules as unknown as { action: string; ip: string }[]).find((module) => module.action === target)
+  const module = await getState(target)
+  if (module.state === state) {
+    return
+  }
   const command = new Deno.Command("python3", {
     args: [`${Deno.cwd()}/python/tp_${state ? "on" : "off"}.py`],
     clearEnv: true,
     env: {
-      TP_IP: module!.ip,
+      TP_IP: module.ip,
       TP_USERNAME: settings.tp_username,
       TP_PASSWORD: settings.tp_password,
     },
@@ -146,11 +171,27 @@ async function getState(target: string) {
     stdin: "null",
   })
   const { stdout } = await command.output()
-  console.log(JSON.parse(new TextDecoder().decode(stdout)))
-  // device_on
+  const { device_on } = JSON.parse(new TextDecoder().decode(stdout))
+  return { ...module, state: device_on }
 }
 
 /** Take picture */
 function takePicture() {
   throw new Error("Function not implemented.")
+}
+
+/** Start stream */
+export function startVideo(port: number) {
+  const command = new Deno.Command("python3", {
+    args: [`${Deno.cwd()}/python/stream.py`],
+    clearEnv: true,
+    env: {
+      STREAM_PORT: `${port}`,
+    },
+    stdout: "null",
+    stderr: "null",
+    stdin: "null",
+  })
+  console.log(`started video stream on port ${port}`)
+  command.spawn()
 }

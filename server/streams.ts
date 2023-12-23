@@ -18,21 +18,3 @@ export async function getStream(_: Request, session: string | undefined, index: 
   }
   return fetch(`http://0.0.0.0:${settings.stream_port[index]}`)
 }
-
-/** Start stream */
-export function startStreams() {
-  ;(settings.stream_port as unknown as number[]).forEach((port) => {
-    const command = new Deno.Command("python3", {
-      args: [`${Deno.cwd()}/python/stream.py`],
-      clearEnv: true,
-      env: {
-        STREAM_PORT: `${port}`,
-      },
-      stdout: "null",
-      stderr: "null",
-      stdin: "null",
-    })
-    console.log(`Starting stream on port ${port}`)
-    command.spawn()
-  })
-}

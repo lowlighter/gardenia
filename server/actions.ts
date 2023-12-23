@@ -145,9 +145,6 @@ async function setState(target: string, state: boolean) {
       TP_USERNAME: settings.tp_username,
       TP_PASSWORD: settings.tp_password,
     },
-    stdout: "null",
-    stderr: "null",
-    stdin: "null",
   })
   await command.output()
 }
@@ -167,8 +164,6 @@ async function getState(target: string) {
       TP_PASSWORD: settings.tp_password,
     },
     stdout: "piped",
-    stderr: "null",
-    stdin: "null",
   })
   const { stdout } = await command.output()
   const { device_on } = JSON.parse(new TextDecoder().decode(stdout))
@@ -183,14 +178,11 @@ function takePicture() {
 /** Start stream */
 export function startVideo(port: number) {
   const command = new Deno.Command("python3", {
-    args: [`${Deno.cwd()}/python/stream.py`],
+    args: [`${Deno.cwd()}/python/video.py`],
     clearEnv: true,
     env: {
       STREAM_PORT: `${port}`,
     },
-    stdout: "null",
-    stderr: "null",
-    stdin: "null",
   })
   console.log(`started video stream on port ${port}`)
   command.spawn()

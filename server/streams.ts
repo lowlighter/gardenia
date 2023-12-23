@@ -13,8 +13,8 @@ export async function getStream(_: Request, session: string | undefined, index: 
   if ((!system.public.video) && (!await isAllowedTo(session, []))) {
     return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
   }
-  if (!settings.stream_port[index]) {
+  if (!settings.videos[index]) {
     return new Response(JSON.stringify({ error: lang.stream_not_found }), { status: Status.NotFound, headers })
   }
-  return fetch(`http://0.0.0.0:${settings.stream_port[index]}`)
+  return fetch(settings.videos[index])
 }

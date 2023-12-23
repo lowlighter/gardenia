@@ -13,7 +13,7 @@ for (const action of ["light", "heat", "aeration", "water", "video", "camera"]) 
   if (exists) {
     continue
   }
-  await kv.set(["actions", action], { enabled: true, on: true })
+  await kv.set(["actions", action], { enabled: true, on: false })
 }
 
 // Sync actions states
@@ -32,8 +32,8 @@ for (const ip of settings.videos as unknown as string[]) {
   if (!ip.includes("0.0.0.0")) {
     continue
   }
-  const port = Number(ip.split(":")[1])
-  if (!Number.isNaN(port)) {
+  const port = Number(ip.split(":").at(-1))
+  if (Number.isNaN(port)) {
     continue
   }
   startVideo(port)

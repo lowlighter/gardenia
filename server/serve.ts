@@ -13,14 +13,12 @@ import { lang } from "./lang.ts"
 import { getMeta } from "./meta.ts"
 import { getSystem, updateSystem } from "./system.ts"
 import { fetchNetatmoData, refreshNetatmoToken } from "./netatmo.ts"
-import { startStreams } from "./streams.ts"
 
 /** Serve files */
 export async function serve({ init = true } = {}) {
   if (init) {
     await refreshNetatmoToken()
     await fetchNetatmoData(new Date(0))
-    startStreams()
   }
 
   Deno.serve({ port: Number(settings.port), onListen: () => void null }, (request) => {
@@ -75,8 +73,8 @@ export async function serve({ init = true } = {}) {
         return updateAction(request, session)
 
       // Camera #1
-      case url.pathname === "/stream/1":
-        return getStream(request, session, 1)
+      case url.pathname === "/stream/0":
+        return getStream(request, session, 0)
 
       // Get stats
       case (url.pathname === "/api/stats") && (request.method === "GET"):

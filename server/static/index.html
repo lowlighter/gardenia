@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gardenia</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+</head>
+<body x-data="{meta:{}, lang:{}, data:{errors:{}, success:{}, user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, history_page:0}}" class="relative bg-gray-900 text-white">
+  <template x-init="await initApp(meta, lang)"></template>
+
+  <!-- Header -->
+  <nav class="bg-gray-950 py-2" x-init="(document.cookie.includes('gardenia_session=') ? login(data, {auto:true}) : null, refresh(data))">
+    <div class="container mx-auto flex justify-between">
+      <div class="font-bold" x-text="meta.name"></div>
+      <div class="flex">
+        <template x-if="data.user.username">
+          <div class="flex">
+            <div x-text="data.user.username" class="p-1 px-2 mr-2"></div>
+            <button x-text="lang.logout" @click="logout(data)" type="submit" class="rounded-md bg-sky-800 p-1 px-2 shadow"></button>
+          </div>
+        </template>
+        <template x-if="!data.user.username">
+          <form @submit.prevent="login(data)" class="flex">
+            <div class="p-1 px-2 mr-2">
+              <span class="text-red-700" x-text="data.errors.login"></span>
+              <span class="text-green-700" x-text="data.success.login"></span>
+              <span class="text-red-700" x-text="data.errors.logout"></span>
+              <span class="text-green-700" x-text="data.success.logout"></span>
+            </div>
+            <input name="username" type="text" class="p-1 px-2 mr-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.username">
+            <input name="password" type="password" class="p-1 px-2 mr-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.password">
+            <button x-text="lang.login" type="submit" class="rounded-md bg-sky-800 p-1 px-2 shadow"></button>
+          </form>
+        </template>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Graphs -->
+  <div class="container mx-auto mt-4 px-4">
+    <template x-if="data.system.public.stats || data.user.username">
+      <div>
+        <!-- Date selection -->
+        <div>
+          <span x-text="lang.date_from"></span>
+          <input @change="getStats(_data)" :value="new Date().toISOString().slice(0, 10)" name="range_from" type="date" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
+          <span x-text="lang.date_to"></span>
+          <input @change="getStats(_data)" :value="new Date().toISOString().slice(0, 10)" name="range_to" type="date" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
+        </div>
+
+        <!-- Stats and graphs -->
+        <div x-text="`${lang.last_updated} ${data.stats.time ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(data.stats.time) : ''}`" class="text-gray-500"></div>
+        <div class="flex flex-col">
+          <div class="grid grid-cols-3 gap-4 mb-4">
+            <template x-for="{key, unit, label} in [
+              {key:'temperature', label:lang.temperature, unit:'°C'},
+              {key:'humidity', label:lang.humidity, unit:'%'},
+              {key:'co2', label:lang.co2, unit:'ppm'},
+              {key:'pressure', label:lang.pressure, unit:'mbar'},
+              {key:'noise', label:lang.noise, unit:'dB'},
+              {key:'rain', label:lang.rain, unit:'mm/h'},
+              {key:'windstrength', label:lang.windstrength, unit:'m/s'},
+            ]">
+              <div class="p-4">
+                <p class="text-sm text-gray-500" x-text="label"></p>
+                <div class="flex items-end">
+                  <div class="text-2xl font-medium mr-2">
+                    <span x-text="data.stats[key]?.current ?? '-'"></span> <span x-text="unit"></span>
+                  </div>
+                  <div class="inline-block">
+                    <template x-if="data.stats[key]?.trend === 'down'">
+                      <div class="inline-flex gap-2 rounded bg-red-900 p-1 text-red-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+                      </div>
+                    </template>
+                    <template x-if="data.stats[key]?.trend === 'up'">
+                      <div class="inline-flex gap-2 rounded bg-green-900 p-1 text-green-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                <p>
+                  <span class="text-sm" x-text="data.stats[key]?.min ?? '-'"></span> à <span class="text-sm" x-text="data.stats[key]?.max ?? '-'"></span></span> <span x-text="unit"></span>
+                </p>
+                <canvas :data-graph="key"></canvas>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Actions -->
+    <template x-if="data.system.public.stats || data.user.username">
+      <div>
+        <div class="my-4 grid grid-cols-3 gap-4">
+          <template x-for="{key, name} in [
+            {key:'light', name:lang.light_name},
+            {key:'heat', name:lang.heat_name},
+            {key:'aeration', name:lang.aeration_name},
+            {key:'water', name:lang.water_name},
+            {key:'video', name:lang.video_name},
+            {key:'camera', name:lang.camera_name},
+          ]">
+            <div class="block rounded-xl border border-gray-800 p-4 shadow-xl hover:border-gray-500 hover:ring-1 hover:ring-gray-500 focus:outline-none focus:ring">
+              <div class="flex items-end">
+                <span :class="{'bg-green-900':data.actions[key]?.on, 'bg-gray-800':!data.actions[key]?.on}" class="inline-block rounded-lg p-4 mr-4">
+                  <template x-if="key === 'light'">
+                    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-lightbulb" viewBox="0 0 16 16">
+                      <path d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a1.964 1.964 0 0 0-.453-.618A5.984 5.984 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.83 12h4.342l.632-1.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1"/>
+                    </svg>
+                  </template>
+                  <template x-if="key === 'heat'">
+                    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-fire" viewBox="0 0 16 16">
+                      <path d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16m0-1c-1.657 0-3-1-3-2.75 0-.75.25-2 1.25-3C6.125 10 7 10.5 7 10.5c-.375-1.25.5-3.25 2-3.5-.179 1-.25 2 1 3 .625.5 1 1.364 1 2.25C11 14 9.657 15 8 15"/>
+                    </svg>
+                  </template>
+                  <template x-if="key === 'aeration'">
+                    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-wind" viewBox="0 0 16 16">
+                      <path d="M12.5 2A2.5 2.5 0 0 0 10 4.5a.5.5 0 0 1-1 0A3.5 3.5 0 1 1 12.5 8H.5a.5.5 0 0 1 0-1h12a2.5 2.5 0 0 0 0-5m-7 1a1 1 0 0 0-1 1 .5.5 0 0 1-1 0 2 2 0 1 1 2 2h-5a.5.5 0 0 1 0-1h5a1 1 0 0 0 0-2M0 9.5A.5.5 0 0 1 .5 9h10.042a3 3 0 1 1-3 3 .5.5 0 0 1 1 0 2 2 0 1 0 2-2H.5a.5.5 0 0 1-.5-.5"/>
+                    </svg>
+                  </template>
+                  <template x-if="key === 'water'">
+                    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-droplet-half" viewBox="0 0 16 16">
+                      <path fill-rule="evenodd" d="M7.21.8C7.69.295 8 0 8 0c.109.363.234.708.371 1.038.812 1.946 2.073 3.35 3.197 4.6C12.878 7.096 14 8.345 14 10a6 6 0 0 1-12 0C2 6.668 5.58 2.517 7.21.8zm.413 1.021A31.25 31.25 0 0 0 5.794 3.99c-.726.95-1.436 2.008-1.96 3.07C3.304 8.133 3 9.138 3 10c0 0 2.5 1.5 5 .5s5-.5 5-.5c0-1.201-.796-2.157-2.181-3.7l-.03-.032C9.75 5.11 8.5 3.72 7.623 1.82z"/>
+                      <path fill-rule="evenodd" d="M4.553 7.776c.82-1.641 1.717-2.753 2.093-3.13l.708.708c-.29.29-1.128 1.311-1.907 2.87z"/>
+                    </svg>
+                  </template>
+                  <template x-if="key === 'video'">
+                    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 576 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M0 128C0 92.7 28.7 64 64 64H320c35.3 0 64 28.7 64 64V384c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V128zM559.1 99.8c10.4 5.6 16.9 16.4 16.9 28.2V384c0 11.8-6.5 22.6-16.9 28.2s-23 5-32.9-1.6l-96-64L416 337.1V320 192 174.9l14.2-9.5 96-64c9.8-6.5 22.4-7.2 32.9-1.6z"/></svg>
+                  </template>
+                  <template x-if="key === 'camera'">
+                    <svg fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="24" width="24" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M149.1 64.8L138.7 96H64C28.7 96 0 124.7 0 160V416c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H373.3L362.9 64.8C356.4 45.2 338.1 32 317.4 32H194.6c-20.7 0-39 13.2-45.5 32.8zM256 192a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/></svg>
+                  </template>
+                </span>
+                <h2 x-text="name" class="mt-2 text-2xl font-bold"></h2>
+              </div>
+              <template x-if="data.actions[key]?.enabled && (data.user.role?.admin || data.user.role?.actions)">
+                <div>
+                  <p class="mt-4 text-sm text-gray-300 mb-1" x-text="lang.automated_handling"></p>
+                  <div class="grid grid-cols-3 gap-2 text-sm text-gray-300">
+                    <select class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                      <option value="temperature">Température</option>
+                      <option value="eq">égal à</option>
+                      <option value="gt">supérieur à</option>
+                    </select>
+                    <select class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                      <option value="lt">inférieur à</option>
+                      <option value="eq">égal à</option>
+                      <option value="gt">supérieur à</option>
+                    </select>
+                    <label>
+                      <input type="number" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                    </label>
+                  </div>
+                </div>
+              </template>
+              <template x-if="data.actions[key]?.enabled && (data.user.role?.admin || data.user.role?.actions)">
+                <div>
+                  <p class="mt-4 text-sm text-gray-300 mb-1" x-text="lang.manual_handling"></p>
+                  <template x-if="!data.actions[key]?.on">
+                    <div x-data="{update:{action:{target:key, action:'on', duration:'1m'}}}" class="mt-2 text-sm text-gray-300 mb-1">
+                      <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                        <button @click="updateAction(data, update.action)" class="flex items-center p-1 px-2 rounded-md border-yellow-500 bg-yellow-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                          <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M352 320c88.4 0 160-71.6 160-160c0-15.3-2.2-30.1-6.2-44.2c-3.1-10.8-16.4-13.2-24.3-5.3l-76.8 76.8c-3 3-7.1 4.7-11.3 4.7H336c-8.8 0-16-7.2-16-16V118.6c0-4.2 1.7-8.3 4.7-11.3l76.8-76.8c7.9-7.9 5.4-21.2-5.3-24.3C382.1 2.2 367.3 0 352 0C263.6 0 192 71.6 192 160c0 19.1 3.4 37.5 9.5 54.5L19.9 396.1C7.2 408.8 0 426.1 0 444.1C0 481.6 30.4 512 67.9 512c18 0 35.3-7.2 48-19.9L297.5 310.5c17 6.2 35.4 9.5 54.5 9.5zM80 408a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg>
+                          <span x-text="lang.manual_start"></span>
+                        </button>
+                        <select x-model="update.action.duration" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                          <template x-for="value in ['1m', '5m', '10m', '15m', '30m', '1h', '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', '10h', '11h', '12h']">
+                            <option :value="value" x-text="lang[value]"></option>
+                          </template>
+                        </select>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="data.actions[key]?.on">
+                    <div x-data="{update:{action:{target:key, action:'off'}}}" class="mt-2 text-sm text-gray-300 mb-1">
+                      <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                        <button @click="updateAction(data, update.action)" class="flex items-center p-1 px-2 rounded-md border-yellow-500 bg-yellow-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                          <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M352 320c88.4 0 160-71.6 160-160c0-15.3-2.2-30.1-6.2-44.2c-3.1-10.8-16.4-13.2-24.3-5.3l-76.8 76.8c-3 3-7.1 4.7-11.3 4.7H336c-8.8 0-16-7.2-16-16V118.6c0-4.2 1.7-8.3 4.7-11.3l76.8-76.8c7.9-7.9 5.4-21.2-5.3-24.3C382.1 2.2 367.3 0 352 0C263.6 0 192 71.6 192 160c0 19.1 3.4 37.5 9.5 54.5L19.9 396.1C7.2 408.8 0 426.1 0 444.1C0 481.6 30.4 512 67.9 512c18 0 35.3-7.2 48-19.9L297.5 310.5c17 6.2 35.4 9.5 54.5 9.5zM80 408a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg>
+                          <span x-text="lang.manual_stop"></span>
+                        </button>
+                        <div class="flex items-center p-1 px-2 rounded-md bg-gray-800 shadow-sm opacity-75">
+                          <span x-text="data.actions[key]?.until ? `${lang.action_on_until} ${new Intl.DateTimeFormat(lang.code, {timeStyle:'medium'}).format(new Date(data.actions[key]?.until))}` : ''"></span>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <template x-if="data.user.role?.admin || data.user.role?.actions">
+                <div>
+                  <p class="mt-4 text-sm text-gray-300 mb-1" x-text="lang.action_manage"></p>
+                  <template x-if="!data.actions[key]?.enabled">
+                    <div x-data="{update:{action:{target:key, action:'enable'}}}" class="mt-2 text-sm text-gray-300 mb-1">
+                      <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                        <button @click="updateAction(data, update.action)" class="flex items-center p-1 px-2 rounded-md border-green-500 bg-green-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                          <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zm0 464A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-111 111-47-47c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l64 64c9.4 9.4 24.6 9.4 33.9 0L369 209z"/></svg>
+                          <span x-text="lang.enable"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="data.actions[key]?.enabled">
+                    <div x-data="{update:{action:{target:key, action:'disable'}}}" class="mt-2 text-sm text-gray-300 mb-1">
+                      <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                        <button @click="updateAction(data, update.action)" class="flex items-center p-1 px-2 rounded-md border-red-500 bg-red-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                          <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="16" viewBox="0 0 512 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M367.2 412.5L99.5 144.8C77.1 176.1 64 214.5 64 256c0 106 86 192 192 192c41.5 0 79.9-13.1 111.2-35.5zm45.3-45.3C434.9 335.9 448 297.5 448 256c0-106-86-192-192-192c-41.5 0-79.9 13.1-111.2 35.5L412.5 367.2zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256z"/></svg>
+                          <span x-text="lang.disable"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+        <span class="my-2 text-red-700" x-text="data.errors.actions"></span>
+        <span class="my-2 text-green-700" x-text="data.success.actions"></span>
+      </div>
+    </template>
+
+    <!-- Videos -->
+    <template x-if="data.system.public.video || data.user.username">
+      <div>
+        <h1 class="text-2xl mb-4" x-text="lang.video_name"></h1>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="relative h-96 overflow-hidden rounded-lg bg-gray-800">
+            <img class="absolute inset-0 h-full w-full object-cover" alt="" src="/stream/1">
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- History -->
+    <template x-if="data.system.public.history || data.user.username">
+      <section>
+        <h1 class="text-2xl" x-text="lang.history"></h1>
+        <div class="overflow-x-auto rounded-md my-4">
+          <table class="min-w-full divide-y-2 divide-gray-600 bg-gray-900 text-sm">
+            <thead class="bg-gray-950">
+              <tr>
+                <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.history_entry_by"></th>
+                <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.history_entry_action"></th>
+                <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.history_entry_date"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-600">
+              <template x-for="{time, username, message} in data.history.entries">
+                <tr class="odd:bg-gray-800 even:bg-gray-700">
+                  <td x-text="username" class="whitespace-nowrap px-4 py-2 font-medium font-bold"></td>
+                  <td x-text="message" class="whitespace-nowrap px-4 py-2"></td>
+                  <td x-text="new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(time)" class="whitespace-nowrap px-4 py-2"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div class="rounded-b-lg px-4 py-2">
+          <ol class="flex justify-end gap-1 text-xs font-medium">
+            <li>
+              <a href="#" @click.prevent="getHistoryPage(data, data.history_page-1)" :class="{'opacity-50 pointer-events-none':!data.history_page}" class="inline-flex h-8 w-8 items-center justify-center rounded bg-gray-800 hover:bg-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"clip-rule="evenodd"/></svg>
+              </a>
+            </li>
+            <li>
+              <a href="#" x-text="data.history_page+1" class="pointer-events-none block h-8 w-8 rounded text-center leading-8"></a>
+            </li>
+            <li>
+              <a href="#" @click.prevent="getHistoryPage(data, data.history_page+1)" :class="{'opacity-50 pointer-events-none':data.history_page*10 >= data.history.length-1}" class="inline-flex h-8 w-8 items-center justify-center rounded bg-gray-800 hover:bg-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"clip-rule="evenodd"/></svg>
+              </a>
+            </li>
+          </ol>
+        </div>
+      </section>
+    </template>
+
+    <!-- Users -->
+    <template x-if="data.user.username">
+      <section>
+        <!-- Users list -->
+        <template x-if="data.users.length">
+          <section>
+            <h1 class="text-2xl" x-text="lang.users_manage"></h1>
+            <div class="overflow-x-auto rounded-md my-4">
+              <table class="min-w-full divide-y-2 divide-gray-600 bg-gray-900 text-sm">
+                <thead class="bg-gray-950">
+                  <tr>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_name"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_is_admin"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_can_manage_system"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_can_manage_users"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_can_manage_actions"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_last_login"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.users_actions"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-600">
+                  <template x-for="{username, logged, role, system} in data.users">
+                    <tr class="odd:bg-gray-800 even:bg-gray-700">
+                      <td x-text="username" class="whitespace-nowrap px-4 py-2 font-medium font-bold"></td>
+                      <td class="whitespace-nowrap px-4 py-2">
+                        <label :class="{'pointer-events-none opacity-25 cursor-not-allowed':system}" class="block relative h-6 w-12 cursor-pointer">
+                          <input x-model="role.admin" type="checkbox" class="peer sr-only">
+                          <span :class="{'bg-gray-300':!role.admin, 'bg-sky-500':role.admin}" class="absolute inset-0 rounded-full transition"></span>
+                          <span :class="{'start-0':!role.admin, 'start-6':role.admin}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                        </label>
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-2">
+                        <template x-if="!role.admin">
+                          <label class="block relative h-6 w-12 cursor-pointer">
+                            <input x-model="role.system" type="checkbox" class="peer sr-only">
+                            <span :class="{'bg-gray-300':!role.system, 'bg-sky-500':role.system}" class="absolute inset-0 rounded-full transition"></span>
+                            <span :class="{'start-0':!role.system, 'start-6':role.system}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                          </label>
+                        </template>
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-2">
+                        <template x-if="!role.admin">
+                          <label class="block relative h-6 w-12 cursor-pointer">
+                            <input x-model="role.users" type="checkbox" class="peer sr-only">
+                            <span :class="{'bg-gray-300':!role.users, 'bg-sky-500':role.users}" class="absolute inset-0 rounded-full transition"></span>
+                            <span :class="{'start-0':!role.users, 'start-6':role.users}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                          </label>
+                        </template>
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-2">
+                        <template x-if="!role.admin">
+                          <label class="block relative h-6 w-12 cursor-pointer">
+                            <input x-model="role.actions" type="checkbox" class="peer sr-only">
+                            <span :class="{'bg-gray-300':!role.actions, 'bg-sky-500':role.actions}" class="absolute inset-0 rounded-full transition"></span>
+                            <span :class="{'start-0':!role.actions, 'start-6':role.actions}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                          </label>
+                        </template>
+                      </td>
+                      <td x-text="logged ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(logged) : lang.users_never_logged" class="whitespace-nowrap px-4 py-2 font-medium"></td>
+                      <td class="px-4 py-2">
+                        <template x-if="!system">
+                          <div class="flex">
+                            <button @click="updateUser(data, {username, role})" class="flex items-center p-1 px-2 mr-2 rounded-md border-yellow-500 bg-yellow-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                              <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M48 96V416c0 8.8 7.2 16 16 16H384c8.8 0 16-7.2 16-16V170.5c0-4.2-1.7-8.3-4.7-11.3l33.9-33.9c12 12 18.7 28.3 18.7 45.3V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96C0 60.7 28.7 32 64 32H309.5c17 0 33.3 6.7 45.3 18.7l74.5 74.5-33.9 33.9L320.8 84.7c-.3-.3-.5-.5-.8-.8V184c0 13.3-10.7 24-24 24H104c-13.3 0-24-10.7-24-24V80H64c-8.8 0-16 7.2-16 16zm80-16v80H272V80H128zm32 240a64 64 0 1 1 128 0 64 64 0 1 1 -128 0z"/></svg>
+                              <span x-text="lang.edit"></span>
+                            </button>
+                            <button @click="deleteUser(data, {username})" class="flex items-center p-1 px-2 mr-2 rounded-md border-red-500 bg-red-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                              <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="12" viewBox="0 0 384 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>
+                              <span x-text="lang.delete"></span>
+                            </button>
+                          </div>
+                        </template>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-data="{create:{user:{username:'', role:{admin:false, system:false, users:false, actions:false}, password:''}}}" class="odd:bg-gray-800 even:bg-gray-700">
+                    <td class="whitespace-nowrap px-4 py-2 font-medium font-bold">
+                      <input x-model="create.user.username" type="text" class="p-1 px-2 rounded-md border-gray-700 bg-gray-900 shadow-sm w-full" :placeholder="lang.username">
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2">
+                      <label class="block relative h-6 w-12 cursor-pointer">
+                        <input x-model="create.user.role.admin" type="checkbox" class="peer sr-only">
+                        <span :class="{'bg-gray-300':!create.user.role.admin, 'bg-sky-500':create.user.role.admin}" class="absolute inset-0 rounded-full transition"></span>
+                        <span :class="{'start-0':!create.user.role.admin, 'start-6':create.user.role.admin}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                      </label>
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2">
+                      <template x-if="!create.user.role.admin">
+                        <label class="block relative h-6 w-12 cursor-pointer">
+                          <input x-model="create.user.role.users" type="checkbox" class="peer sr-only">
+                          <span :class="{'bg-gray-300':!create.user.role.users, 'bg-sky-500':create.user.role.users}" class="absolute inset-0 rounded-full transition"></span>
+                          <span :class="{'start-0':!create.user.role.users, 'start-6':create.user.role.users}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                        </label>
+                      </template>
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2">
+                      <template x-if="!create.user.role.admin">
+                        <label class="block relative h-6 w-12 cursor-pointer">
+                          <input x-model="create.user.role.system" type="checkbox" class="peer sr-only">
+                          <span :class="{'bg-gray-300':!create.user.role.system, 'bg-sky-500':create.user.role.system}" class="absolute inset-0 rounded-full transition"></span>
+                          <span :class="{'start-0':!create.user.role.system, 'start-6':create.user.role.system}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                        </label>
+                      </template>
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2">
+                      <template x-if="!create.user.role.admin">
+                        <label class="block relative h-6 w-12 cursor-pointer">
+                          <input x-model="create.user.role.actions" type="checkbox" class="peer sr-only">
+                          <span :class="{'bg-gray-300':!create.user.role.actions, 'bg-sky-500':create.user.role.actions}" class="absolute inset-0 rounded-full transition"></span>
+                          <span :class="{'start-0':!create.user.role.actions, 'start-6':create.user.role.actions}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                        </label>
+                      </template>
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-2 font-medium">
+                      <input x-model="create.user.password" type="password" class="p-1 px-2 rounded-md border-gray-700 bg-gray-900 shadow-sm w-full" :placeholder="lang.password_initial">
+                    </td>
+                    <td class="flex px-4 py-2">
+                      <button @click="createUser(data, create.user)" :disabled="!create.user.username || !create.user.password" class="flex items-center p-1 px-2 mr-2 rounded-md border-green-500 bg-green-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                        <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
+                        <span x-text="lang.create"></span>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <span class="my-2 text-red-700" x-text="data.errors.users"></span>
+              <span class="my-2 text-green-700" x-text="data.success.users"></span>
+            </div>
+          </section>
+        </template>
+
+        <!-- Configure system -->
+        <template x-if="data.user.role?.admin || data.user.role?.system">
+          <section>
+            <h1 class="text-2xl mb-4" x-text="lang.system_manage"></h1>
+            <div class="font-bold my-2" x-text="lang.system_general"></div>
+            <span x-text="lang.system_autologout"></span><br>
+            <label>
+              <input type="number" x-model="data.system.autologout" min="1" max="14" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
+            </label>
+            <div class="font-bold my-2" x-text="lang.system_public"></div>
+            <template x-for="key in ['stats', 'actions', 'history', 'images', 'video']">
+              <div class="mb-2">
+                <span x-text="lang[`system_public_${key}`]"></span>
+                <label class="block relative h-6 w-12 cursor-pointer">
+                  <input x-model="data.system.public[key]" type="checkbox" class="peer sr-only">
+                  <span :class="{'bg-gray-300':!data.system.public[key], 'bg-sky-500':data.system.public[key]}" class="absolute inset-0 rounded-full transition"></span>
+                  <span :class="{'start-0':!data.system.public[key], 'start-6':data.system.public[key]}" class="absolute inset-y-0 m-1 h-4 w-4 rounded-full bg-white transition-all"></span>
+                </label>
+              </div>
+            </template>
+            <button @click="updateSystem(data)" type="submit" class="my-4 flex items-center p-1 px-2 mr-2 rounded-md border-yellow-500 bg-yellow-800 shadow-sm w-min disabled:opacity-25 disabled:cursor-not-allowed">
+              <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M48 96V416c0 8.8 7.2 16 16 16H384c8.8 0 16-7.2 16-16V170.5c0-4.2-1.7-8.3-4.7-11.3l33.9-33.9c12 12 18.7 28.3 18.7 45.3V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96C0 60.7 28.7 32 64 32H309.5c17 0 33.3 6.7 45.3 18.7l74.5 74.5-33.9 33.9L320.8 84.7c-.3-.3-.5-.5-.8-.8V184c0 13.3-10.7 24-24 24H104c-13.3 0-24-10.7-24-24V80H64c-8.8 0-16 7.2-16 16zm80-16v80H272V80H128zm32 240a64 64 0 1 1 128 0 64 64 0 1 1 -128 0z"/></svg>
+              <span x-text="lang.edit"></span>
+            </button>
+            <span class="my-2 text-red-700" x-text="data.errors.system"></span>
+            <span class="my-2 text-green-700" x-text="data.success.system"></span>
+          </section>
+        </template>
+
+        <!-- Current user -->
+        <div>
+          <h1 x-text="data.user.username" class="text-2xl"></h1>
+          <div class="mt-4">
+            <template x-for="(value, role) in data.user.role">
+              <template x-if="value">
+                <span x-text="{admin:lang.users_is_admin, users:lang.users_can_manage_users, actions:lang.users_can_manage_actions}[role] ?? role" class="whitespace-nowrap rounded-full bg-purple-100 px-2.5 py-0.5 mr-2 text-sm text-purple-700"></span>
+              </template>
+            </template>
+          </div>
+          <div class="my-4">
+            <span class="font-bold" x-text="lang.change_password"></span>
+            <form @submit.prevent="" x-data="{update:{user:{username:data.user.username, password:''}, confirm:{password:''}}}" class="mt-2 flex flex-col max-w-lg">
+              <input x-model="update.user.password" type="password" class="p-1 px-2 mb-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.password_new">
+              <input x-model="update.confirm.password" type="password" :class="{'bg-red-950':update.user.password !== update.confirm.password}" class="p-1 px-2 mb-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.password_confirm">
+              <button @click="updateUser(data, update.user, 'user')" :disabled="!update.user.password||(update.user.password !== update.confirm.password)" type="submit" class="flex items-center p-1 px-2 mr-2 rounded-md border-yellow-500 bg-yellow-800 shadow-sm w-min disabled:opacity-25 disabled:cursor-not-allowed">
+                <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M48 96V416c0 8.8 7.2 16 16 16H384c8.8 0 16-7.2 16-16V170.5c0-4.2-1.7-8.3-4.7-11.3l33.9-33.9c12 12 18.7 28.3 18.7 45.3V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96C0 60.7 28.7 32 64 32H309.5c17 0 33.3 6.7 45.3 18.7l74.5 74.5-33.9 33.9L320.8 84.7c-.3-.3-.5-.5-.8-.8V184c0 13.3-10.7 24-24 24H104c-13.3 0-24-10.7-24-24V80H64c-8.8 0-16 7.2-16 16zm80-16v80H272V80H128zm32 240a64 64 0 1 1 128 0 64 64 0 1 1 -128 0z"/></svg>
+                <span x-text="lang.edit"></span>
+              </button>
+            </form>
+            <span class="my-2 text-red-700" x-text="data.errors.user"></span>
+            <span class="my-2 text-green-700" x-text="data.success.user"></span>
+          </div>
+        </div>
+      </section>
+    </template>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-950 py-2">
+    <div class="container mx-auto px-4">
+      <a href="https://github.com/lowlighter/gardenia" class="cursor-pointer hover:text-sky-500">Gardenia</a>
+    </div>
+  </footer>
+
+  <script src="/js/tailwind.min.js"></script>
+  <script src="/js/chart.min.js"></script>
+  <script src="/app.js"></script>
+  <script src="/js/alpine.min.js"></script>
+</body>
+</html>

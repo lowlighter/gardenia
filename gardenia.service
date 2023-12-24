@@ -1,0 +1,13 @@
+[Unit]
+Description=Gardenia
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/root/.deno/bin/deno task run
+WorkingDirectory=/gardenia
+Restart=always
+
+[Install]
+WantedBy=default.target
+RequiredBy=network.target

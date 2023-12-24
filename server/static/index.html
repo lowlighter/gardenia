@@ -45,9 +45,9 @@
         <!-- Date selection -->
         <div>
           <span x-text="lang.date_from"></span>
-          <input @change="getStats(_data)" :value="new Date().toISOString().slice(0, 10)" name="range_from" type="date" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
+          <input @change="getStats(data)" :value="new Date().toISOString().slice(0, 10)" name="range_from" type="date" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
           <span x-text="lang.date_to"></span>
-          <input @change="getStats(_data)" :value="new Date().toISOString().slice(0, 10)" name="range_to" type="date" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
+          <input @change="getStats(data)" :value="new Date().toISOString().slice(0, 10)" name="range_to" type="date" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
         </div>
 
         <!-- Stats and graphs -->

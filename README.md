@@ -1,5 +1,7 @@
 # 🌻 Gardenia
 
+![](/demo/gardenia_graphs.png)
+
 This project is designed to run on a Raspberry Pi with:
 
 - [Raspberry camera](https://www.raspberrypi.com/documentation/accessories/camera.html)

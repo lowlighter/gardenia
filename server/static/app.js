@@ -32,10 +32,14 @@ function updateGraphs(_data) {
               ticks: {
                 callback(_, i) {
                   const t = new Date(labels[i])
-                  return [
-                    new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit" }).format(t),
-                    new Intl.DateTimeFormat("fr-FR", { timeStyle: "short" }).format(t),
-                  ]
+                  try {
+                    return [
+                      new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit" }).format(t),
+                      new Intl.DateTimeFormat("fr-FR", { timeStyle: "short" }).format(t),
+                    ]
+                  } catch {
+                    return ""
+                  }
                 },
               },
             },

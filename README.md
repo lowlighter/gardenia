@@ -6,8 +6,7 @@ This project is designed to run on a Raspberry Pi with:
 - [Netatmo weather station](https://dev.netatmo.com/apidocumentation)
 - [TP-link Tapo P100](https://www.tp-link.com/fr/home-networking/smart-plug/tapo-p100)
 
-A TP-link Tapo account and a Netatmo account are required to use this project.
-An additional Wifi dongle will be required to create the hotspot with RaspAP (unless a cabled connexion is available).
+A TP-link Tapo account and a Netatmo account are required to use this project. An additional Wifi dongle will be required to create the hotspot with RaspAP (unless a cabled connexion is available).
 
 ## Installation
 

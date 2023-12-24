@@ -19,7 +19,7 @@ export async function updateHistory(username: string | null, message: string, ro
 
 /** Get history */
 export async function getHistory(request: Request, session?: string) {
-  if (system.public.history) {
+  if ((!system.public.history) && (!await isAllowedTo(session))) {
     return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
   }
   const params = new URL(request.url).searchParams

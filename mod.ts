@@ -1,2 +1,2 @@
 import { serve } from "./server/serve.ts"
-serve({ init: false })
+serve({ init: true })

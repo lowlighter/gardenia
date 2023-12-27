@@ -6,29 +6,32 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <link rel="manifest" href="/site.webmanifest">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body x-data="{meta:{}, lang:{}, data:{errors:{}, success:{}, user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, modules:{}, history_page:0}}" class="relative bg-gray-900 text-white">
+<body x-data="{meta:{}, lang:{}, data:{refresh:{}, errors:{}, success:{}, user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, modules:{}, history_page:0}}" class="relative bg-gray-900 text-white">
   <template x-init="await initApp(meta, lang)"></template>
 
   <!-- Header -->
   <nav class="bg-gray-950 py-2" x-init="(document.cookie.includes('gardenia_session=') ? login(data, {auto:true}) : null, refresh(data))">
-    <div class="container mx-auto flex justify-between">
+    <div class="container mx-auto flex justify-between flex-wrap">
       <div class="font-bold" x-text="meta.name"></div>
       <div class="flex">
         <template x-if="data.user.username">
-          <div class="flex">
+          <div class="flex flex-wrap">
             <div x-text="data.user.username" class="p-1 px-2 mr-2"></div>
             <button x-text="lang.logout" @click="logout(data)" type="submit" class="rounded-md bg-sky-800 p-1 px-2 shadow"></button>
           </div>
         </template>
         <template x-if="!data.user.username">
-          <form @submit.prevent="login(data)" class="flex">
-            <div class="p-1 px-2 mr-2">
-              <span class="text-red-700" x-text="data.errors.login"></span>
-              <span class="text-green-700" x-text="data.success.login"></span>
-              <span class="text-red-700" x-text="data.errors.logout"></span>
-              <span class="text-green-700" x-text="data.success.logout"></span>
-            </div>
+          <form @submit.prevent="login(data)" class="flex flex-wrap">
+            <template x-if="data.errors.login || data.success.login || data.errors.logout || data.success.logout">
+              <div class="p-1 px-2 mr-2">
+                <span class="text-red-700" x-text="data.errors.login"></span>
+                <span class="text-green-700" x-text="data.success.login"></span>
+                <span class="text-red-700" x-text="data.errors.logout"></span>
+                <span class="text-green-700" x-text="data.success.logout"></span>
+              </div>
+            </template>
             <input name="username" type="text" class="p-1 px-2 mr-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.username">
             <input name="password" type="password" class="p-1 px-2 mr-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.password">
             <button x-text="lang.login" type="submit" class="rounded-md bg-sky-800 p-1 px-2 shadow"></button>
@@ -52,6 +55,7 @@
 
         <!-- Stats and graphs -->
         <div x-text="`${lang.last_updated} ${data.stats.time ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(data.stats.time) : ''}`" class="text-gray-400"></div>
+        <div x-text="`${lang.next_update} ${data.refresh.tick ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(data.refresh.tick) : ''}`" class="text-gray-400"></div>
         <div class="flex flex-col">
           <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-4">
             <template x-for="{key, unit, label} in [
@@ -62,6 +66,7 @@
               {key:'noise', label:lang.noise, unit:'dB'},
               {key:'rain', label:lang.rain, unit:'mm/h'},
               {key:'windstrength', label:lang.windstrength, unit:'m/s'},
+              {key:'illuminance', label:lang.illuminance, unit:'L'}
             ]">
               <div class="p-4">
                 <p class="text-sm text-gray-400" x-text="label"></p>
@@ -159,7 +164,7 @@
                   <p class="mt-4 text-sm text-gray-300" x-text="lang.automated_handling"></p>
                   <p class="italic text-sm text-gray-400 mb-1" x-text="lang.automated_handling_description"></p>
                   <template x-for="(conditions, j) in update.conditions">
-                    <div :key="j" class="border border-gray-700 rounded-md p-2 mb-2">
+                    <div :key="j" class="border rounded-md p-2 mb-2" :class="{'border-lime-700 bg-lime-900':conditions.fulfilled, 'border-gray-700':!conditions.fulfilled}">
                       <div class="text-sm mb-2 text-gray-300" x-text="lang.conditions_turn_on"></div>
                       <template x-if="!once">
                         <select x-model="conditions.duration" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm mb-2 text-sm">
@@ -190,6 +195,7 @@
                               <option value="rain" x-text="lang.rain"></option>
                               <option value="windstrength" x-text="lang.windstrength"></option>
                               <option value="guststrength" x-text="lang.guststrength"></option>
+                              <option value="illuminance" x-text="lang.illuminance"></option>
                               <option value="time" x-text="lang.time"></option>
                             </select>
                             <select x-model="condition.op" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
@@ -332,6 +338,31 @@
                   </div>
                   <span class="my-2 text-red-700" x-text="data.errors[`conditions_${key}`]"></span>
                   <span class="my-2 text-green-700" x-text="data.success[`conditions_${key}`]"></span>
+                </div>
+              </template>
+              <template x-if="!(data.actions[key]?.enabled && (data.user.role?.admin || data.user.role?.actions))">
+                <div>
+                  <p class="mt-4 text-sm text-gray-300" x-text="lang.automated_handling"></p>
+                  <p class="italic text-sm text-gray-400 mb-1" x-text="lang.automated_handling_description"></p>
+                  <template x-for="(conditions, j) in data.actions[key]?.conditions ?? []">
+                    <div :key="j" class="border rounded-md p-2 mb-2" :class="{'border-lime-700 bg-lime-900':conditions.fulfilled, 'border-gray-700':!conditions.fulfilled}">
+                      <div class="text-sm mb-2 text-gray-300" x-text="lang.conditions_turn_on"></div>
+                      <template x-if="!once">
+                        <div class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm mb-2 text-sm" x-text="lang[conditions.duration]"></div>
+                      </template>
+                      <template x-if="once">
+                        <div class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm mb-2 text-sm" x-text="lang.once"></div>
+                      </template>
+                      <div class="text-sm mb-2 text-gray-300" x-text="lang.conditions"></div>
+                      <template x-for="(condition, i) in conditions.list">
+                        <div :key="i" class="grid grid-cols-3 gap-2 text-sm text-gray-300 mb-2">
+                          <div class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm" x-text="lang[condition.stat]"></div>
+                          <div class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm" x-text="lang[`conditions_${condition.op}`]"></div>
+                          <div class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm" x-text="condition.stat === 'time' ? `${parseInt(condition.value)}h${(15*(condition.value-parseInt(condition.value))/0.25).toString().padStart(2, '0')}` : condition.value"></div>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
                 </div>
               </template>
               <template x-if="data.actions[key]?.enabled && (data.user.role?.admin || data.user.role?.actions)">
@@ -687,7 +718,7 @@
   <!-- Footer -->
   <footer class="bg-gray-950 py-2 mt-16">
     <div class="container mx-auto px-4">
-      <a href="https://github.com/lowlighter/gardenia" class="cursor-pointer hover:text-sky-500">Gardenia</a>
+      <a href="https://github.com/lowlighter/gardenia" class="cursor-pointer hover:text-sky-500">Gardenia <span x-text="meta?.version"></span></a>
     </div>
   </footer>
 

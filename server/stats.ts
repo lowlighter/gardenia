@@ -18,6 +18,7 @@ const specs = {
   rain: { min: 0, max: 150, unit: "mm/h" },
   windstrength: { min: 0, max: 45, unit: "m/s" },
   guststrength: { min: 0, max: 45, unit: "m/s" },
+  illuminance: { min: 1, max: 65535, unit: "lux" },
 }
 
 /** Get stats */
@@ -44,9 +45,9 @@ export async function getStats(request: Request, session?: string) {
   const values = data.map(({ value }) => value)
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   // deno-lint-ignore no-explicit-any
-  const result = { range: { timezone, from: from.toISOString(), to: to.toISOString() } } as any
+  const result = { time: Date.now(), range: { timezone, from: from.toISOString(), to: to.toISOString() } } as any
 
-  for (const key of ["temperature", "temperature_out", "humidity", "humidity_out", "co2", "pressure", "noise", "rain", "windstrength", "windangle", "guststrength", "gustangle"]) {
+  for (const key of ["temperature", "temperature_out", "humidity", "humidity_out", "co2", "pressure", "noise", "rain", "windstrength", "windangle", "guststrength", "gustangle", "illuminance"]) {
     const previous = values.at(0)?.[key] ?? NaN
     const current = values.at(-1)?.[key] ?? NaN
     const min = values.reduce((min, value) => Math.min(min, value[key] ?? NaN), Infinity)
@@ -61,10 +62,11 @@ export async function getStats(request: Request, session?: string) {
         humidity_out: ["#b87fff", "#1c1828"],
         co2: ["#6e7681", "#161b22"],
         pressure: ["#bf4b8a", "#221926"],
-        noise: ["#9e6a03", "#272115"],
+        noise: ["#ef6eb1", "#211620"],
         rain: ["#8957e5", "#1d1b2e"],
         windstrength: ["#238636", "#12261e"],
         guststrength: ["#09b43a", "#0a2517"],
+        illuminance: ["#9e6a03", "#272115"],
       }[key]!
       const entries = data.map(({ key: [_, date], value }) => [date, value[key]]).filter(([, value]) => Number.isFinite(value))
       const labels = entries.map(([date]) => new Date(date as string).toISOString())

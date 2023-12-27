@@ -8,7 +8,7 @@
   // Set to true to simulate data (useful for testing)
   "simulated": false,
   // Pictures directory
-  "pictures": "server/static/pictures",
+  "pictures": "server/pictures",
   // Video streams
   "videos": [
     { "url": "http://0.0.0.0", "port": 8000, "picamera": true }

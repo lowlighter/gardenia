@@ -2,3 +2,4 @@
 .kv-shm
 .kv-wal
 settings.jsonc
+server/pictures/*.png

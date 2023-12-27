@@ -8,7 +8,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body x-data="{meta:{}, lang:{}, data:{refresh:{}, errors:{}, success:{}, user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, modules:{}, history_page:0}}" class="relative bg-gray-900 text-white">
+<body x-data="{meta:{}, lang:{}, data:{refresh:{}, errors:{}, success:{}, pictures:[], user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, modules:{}, history_page:0}}" class="relative bg-gray-900 text-white">
   <template x-init="await initApp(meta, lang)"></template>
 
   <!-- Header -->
@@ -434,14 +434,22 @@
     </template>
 
     <!-- Videos -->
-    <template x-if="data.system.public.video || data.user.username">
-      <div>
-        <h1 class="text-2xl mb-4 mt-16" x-text="lang.video_name"></h1>
-        <div class="grid grid-cols-2 gap-4 mb-4">
+    <template x-if="data.system.public.video || data.system.public.images || data.user.username">
+      <div x-data="{picture:(data.system.public.video || data.user.username) ? '/stream/0' : ''}">
+        <h1 class="text-2xl mb-4 mt-16" x-text="lang.video_and_camera"></h1>
+        <div class="grid gap-4 mb-4">
           <div class="relative h-96 overflow-hidden rounded-lg bg-gray-800">
-            <img class="absolute inset-0 h-full w-full object-cover" alt="" src="/stream/0">
+            <img class="absolute inset-0 h-full w-full object-cover" alt="" :src="picture || data.pictures.at(-1) || ''">
           </div>
         </div>
+        <select x-model="picture" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+          <template x-if="data.system.public.video || data.user.username">
+            <option value="/stream/0" x-text="lang.video_real_time"></option>
+          </template>
+          <template x-for="picture in data.pictures">
+            <option :value="picture" x-text="picture ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(+picture.replace('/pictures/', '')) : picture"></option>
+          </template>
+        </select>
       </div>
     </template>
 

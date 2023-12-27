@@ -316,6 +316,20 @@ async function takePicture() {
   console.log(`saved picture ${name}.png`)
 }
 
+/** Get pictures list */
+export async function getPictures(_: Request, session?: string) {
+  if ((!system.public.images) && (!await isAllowedTo(session, []))) {
+    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+  }
+  const entries = await Array.fromAsync(Deno.readDir(settings.pictures))
+  let pictures = entries.filter((entry) => entry.isFile && entry.name.endsWith(".png")).map((entry) => Number(entry.name.replace(".png", ""))).sort((a, b) => b - a)
+  if (!await isAllowedTo(session, [])) {
+    pictures = pictures.slice(-1)
+  }
+  pictures = pictures.map((picture) => `/pictures/${picture}`)
+  return new Response(JSON.stringify(pictures), { headers })
+}
+
 /** Start stream */
 export function startVideo(port: number) {
   const command = new Deno.Command("python3", {

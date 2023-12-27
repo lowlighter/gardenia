@@ -53,6 +53,8 @@ export const lang = {
   windstrength: "Vent",
   guststrength: "Rafales",
   illuminance: "Éclairement lumineux",
+  video_real_time: "Vidéo en temps réel",
+  video_and_camera: "Vidéo et caméra",
   logout: "Déconnexion",
   login: "Connexion",
   username: "Nom d'utilisateur",

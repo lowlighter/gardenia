@@ -1,11 +1,11 @@
 /// <reference lib="deno.unstable" />
 // Imports
-import { serveDir } from "std/http/file_server.ts"
+import { serveDir, serveFile } from "std/http/file_server.ts"
 import { fromFileUrl } from "std/path/from_file_url.ts"
 import { getCookies } from "std/http/cookie.ts"
 import { addUser, deleteUser, getUsers, login, logout, updateUser } from "./users.ts"
 import { getHistory, updateHistory } from "./history.ts"
-import { getActions, updateAction, updateActionCondition } from "./actions.ts"
+import { getActions, getPictures, updateAction, updateActionCondition } from "./actions.ts"
 import { settings } from "./app.ts"
 import { getStats } from "./stats.ts"
 import { getStream } from "./streams.ts"
@@ -86,6 +86,14 @@ export async function serve() {
       // Get stats
       case (url.pathname === "/api/stats") && (request.method === "GET"):
         return getStats(request, session)
+
+      // Get pictures list
+      case (url.pathname === "/api/pictures") && (request.method === "GET"):
+        return getPictures(request, session)
+      // Get picture
+      case (/^\/pictures\/\d+$/.test(url.pathname)) && (request.method === "GET"): {
+        return serveFile(request, `${Deno.cwd()}/${settings.pictures}/${url.pathname.split("/").pop()}.png`)
+      }
 
       // Serve static files
       default:

@@ -100,6 +100,11 @@ async function getHistory(_data) {
   _data.history = await fetch(`/api/history?${search}`).then((response) => response.json())
 }
 
+/** Fetch pictures */
+async function getPictures(_data) {
+  _data.pictures = await fetch("/api/pictures").then((response) => response.json())
+}
+
 /** Fetch history page */
 globalThis.getHistoryPage = function getHistoryPage(_data, page = 0) {
   _data.history_page = Math.max(0, Math.min(_data.history.length, page || 0))
@@ -227,9 +232,12 @@ globalThis.logout = function logout(_data) {
 }
 
 /** Refresh data */
-function refresh(_data, { refresh = true, actions = true, users = true, history = true, stats = true, system = true } = {}) {
+function refresh(_data, { refresh = true, pictures = true, actions = true, users = true, history = true, stats = true, system = true } = {}) {
   if (refresh) {
     getRefresh(_data)
+  }
+  if (pictures) {
+    getPictures(_data)
   }
   if (actions) {
     getActions(_data)

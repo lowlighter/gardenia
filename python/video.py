@@ -20,6 +20,20 @@ class StreamingOutput(io.BufferedIOBase):
 
 class StreamingHandler(server.BaseHTTPRequestHandler):
   def do_GET(self):
+    if self.path == '/capture':
+      self.send_response(200)
+      self.send_header('Content-Type', 'image/png')
+      picam2.capture_file("/tmp/capture.png")
+      with open("/tmp/capture.png", "rb") as f:
+        self.send_header('Content-Length', os.fstat(f.fileno()).st_size)
+        self.end_headers()
+        self.wfile.write(f.read())
+      f.close()
+      try:
+        os.remove("/tmp/capture.png")
+      except:
+        pass
+      return
     self.send_response(200)
     self.send_header('Age', 0)
     self.send_header('Cache-Control', 'no-cache, private')

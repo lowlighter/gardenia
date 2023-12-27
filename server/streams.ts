@@ -16,5 +16,6 @@ export async function getStream(_: Request, session: string | undefined, index: 
   if (!settings.videos[index]) {
     return new Response(JSON.stringify({ error: lang.stream_not_found }), { status: Status.NotFound, headers })
   }
-  return fetch(settings.videos[index])
+  const { url, port } = settings.videos[index] as unknown as { url: string; port: number }
+  return fetch(`${url}:${port}`)
 }

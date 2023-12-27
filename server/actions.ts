@@ -13,7 +13,7 @@ for (const action of ["light", "heat", "aeration", "water", "video", "camera"]) 
   if (exists) {
     continue
   }
-  await kv.set(["actions", action], { enabled: true, on: false })
+  await kv.set(["actions", action], { enabled: true, on: false, conditions: [] })
 }
 
 // Sync actions states
@@ -80,6 +80,9 @@ export async function updateAction(request: Request, session?: string) {
       break
     }
     case "on": {
+      if (!target.enabled) {
+        return new Response(JSON.stringify({ error: lang.action_is_disabled }), { status: Status.NotImplemented, headers })
+      }
       if (name === "camera") {
         await takePicture()
         updateHistory(actor, lang.action_photo_taken)
@@ -121,6 +124,9 @@ export async function updateAction(request: Request, session?: string) {
       break
     }
     case "off": {
+      if (!target.enabled) {
+        return new Response(JSON.stringify({ error: lang.action_is_disabled }), { status: Status.NotImplemented, headers })
+      }
       target.on = false
       await setState(name, target.on as boolean)
       updateHistory(actor, lang.action_off.replaceAll("${target}", (lang as { [key: string]: string })[name]))
@@ -131,10 +137,48 @@ export async function updateAction(request: Request, session?: string) {
   return new Response(JSON.stringify({ success: true }), { headers })
 }
 
+/** Update action conditions */
+export async function updateActionCondition(request: Request, session?: string) {
+  if ((!session) || (!await isAllowedTo(session, ["actions"]))) {
+    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+  }
+  const { value: actor } = await kv.get<string>(["sessions", session])
+  const {target:name, conditions } = await request.json()
+  const { value: target } = await kv.get<Record<string, unknown>>(["actions", name])
+  if (!target) {
+    return new Response(JSON.stringify({ error: lang.action_does_not_exist }), { status: Status.NotFound, headers })
+  }
+  if (!Array.isArray(conditions))
+    return new Response(JSON.stringify({ error: lang.bad_request }), { status: Status.BadRequest, headers })
+  for (const {list, duration} of conditions) {
+    if ((name !== "camera")&&(!["1m", "5m", "10m", "15m", "30m"].includes(duration)))
+      return new Response(JSON.stringify({ error: `${lang.bad_request}: ${lang.bad_duration} (${duration})` }), { status: Status.BadRequest, headers })
+    for (const condition of list) {
+      condition.value = Number(condition.value)
+      const {stat, op, value} = condition
+      if (!stat)
+        return new Response(JSON.stringify({ error: `${lang.bad_request}: ${lang.bad_stat} (${stat})` }), { status: Status.BadRequest, headers })
+      if (!["eq", "le", "ge"].includes(op))
+        return new Response(JSON.stringify({ error: `${lang.bad_request}: ${lang.bad_op} (${op})` }), { status: Status.BadRequest, headers })
+      if (!Number.isFinite(value))
+        return new Response(JSON.stringify({ error: `${lang.bad_request}: ${lang.bad_value} (${value})` }), { status: Status.BadRequest, headers })
+    }
+  }
+  target.conditions = conditions
+  await kv.set(["actions", name], target)
+  updateHistory(actor, lang.action_conditions_updated.replaceAll("${target}", (lang as { [key: string]: string })[name]))
+  return new Response(JSON.stringify({ success: true }), { headers })
+}
+
 /** Set action state */
 async function setState(target: string, state: boolean) {
   const module = await getState(target)
   if (module.state === state) {
+    return
+  }
+  if (settings.simulated) {
+    const {value} = await kv.get<Record<PropertyKey, unknown>>(["actions", target])
+    await kv.set(["actions", target], {...value, on: state})
     return
   }
   const command = new Deno.Command("python3", {
@@ -151,6 +195,10 @@ async function setState(target: string, state: boolean) {
 
 /** Get action state */
 async function getState(target: string) {
+  if (settings.simulated) {
+    const {value} = await kv.get<{on:boolean}>(["actions", target])
+    return { ip:"", state: value!.on }
+  }
   const module = (settings.tp_modules as unknown as { action: string; ip: string }[]).find((module) => module.action === target)
   if (!module) {
     throw Object.assign(new ReferenceError(`Action not found: ${target}`), { stack: "" })

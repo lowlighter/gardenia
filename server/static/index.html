@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <link rel="manifest" href="/site.webmanifest">
 </head>
-<body x-data="{meta:{}, lang:{}, data:{errors:{}, success:{}, user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, history_page:0}}" class="relative bg-gray-900 text-white">
+<body x-data="{meta:{}, lang:{}, data:{errors:{}, success:{}, user:{}, users:[], history:{}, stats:{}, actions:{}, system:{public:{}}, modules:{}, history_page:0}}" class="relative bg-gray-900 text-white">
   <template x-init="await initApp(meta, lang)"></template>
 
   <!-- Header -->
@@ -51,9 +51,9 @@
         </div>
 
         <!-- Stats and graphs -->
-        <div x-text="`${lang.last_updated} ${data.stats.time ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(data.stats.time) : ''}`" class="text-gray-500"></div>
+        <div x-text="`${lang.last_updated} ${data.stats.time ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(data.stats.time) : ''}`" class="text-gray-400"></div>
         <div class="flex flex-col">
-          <div class="grid grid-cols-3 gap-4 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-4">
             <template x-for="{key, unit, label} in [
               {key:'temperature', label:lang.temperature, unit:'°C'},
               {key:'humidity', label:lang.humidity, unit:'%'},
@@ -64,10 +64,16 @@
               {key:'windstrength', label:lang.windstrength, unit:'m/s'},
             ]">
               <div class="p-4">
-                <p class="text-sm text-gray-500" x-text="label"></p>
+                <p class="text-sm text-gray-400" x-text="label"></p>
                 <div class="flex items-end">
                   <div class="text-2xl font-medium mr-2">
                     <span x-text="data.stats[key]?.current ?? '-'"></span> <span x-text="unit"></span>
+                    <template x-if="data.stats[`${key}_out`]">
+                      <span class="text-sm text-gray-400" x-text="`(${data.stats[`${key}_out`]?.current ?? '-'} ${lang.outdoor})`"></p>
+                    </template>
+                    <template x-if="key === 'windstrength'">
+                      <span class="text-sm text-gray-400" x-text="`(${data.stats.guststrength?.current ?? '-'} ${lang.gust})`"></p>
+                    </template>
                   </div>
                   <div class="inline-block">
                     <template x-if="data.stats[key]?.trend === 'down'">
@@ -83,7 +89,17 @@
                   </div>
                 </div>
                 <p>
-                  <span class="text-sm" x-text="data.stats[key]?.min ?? '-'"></span> à <span class="text-sm" x-text="data.stats[key]?.max ?? '-'"></span></span> <span x-text="unit"></span>
+                  <span class="text-sm" x-text="data.stats[key]?.min ?? '-'"></span> <span x-text="lang.date_to"></span> <span class="text-sm" x-text="data.stats[key]?.max ?? '-'"></span> <span x-text="unit"></span>
+                  <template x-if="data.stats[`${key}_out`]">
+                    <span class="text-gray-400">
+                      (<span class="text-sm" x-text="data.stats[`${key}_out`]?.min ?? '-'"></span> <span x-text="lang.date_to"></span> <span class="text-sm" x-text="data.stats[`${key}_out`]?.max ?? '-'"></span> <span x-text="lang.outdoor"></span>)
+                    </span>
+                  </template>
+                  <template x-if="key === 'windstrength'">
+                    <span class="text-gray-400">
+                      (<span class="text-sm" x-text="data.stats.guststrength?.min ?? '-'"></span> <span x-text="lang.date_to"></span> <span class="text-sm" x-text="data.stats.guststrength?.max ?? '-'"></span> <span x-text="lang.gust"></span>)
+                    </span>
+                  </template>
                 </p>
                 <canvas :data-graph="key"></canvas>
               </div>
@@ -96,16 +112,16 @@
     <!-- Actions -->
     <template x-if="data.system.public.stats || data.user.username">
       <div>
-        <div class="my-4 grid grid-cols-3 gap-4">
-          <template x-for="{key, name} in [
+        <div class="my-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <template x-for="{key, name, once} in [
             {key:'light', name:lang.light_name},
             {key:'heat', name:lang.heat_name},
             {key:'aeration', name:lang.aeration_name},
             {key:'water', name:lang.water_name},
             {key:'video', name:lang.video_name},
-            {key:'camera', name:lang.camera_name},
+            {key:'camera', name:lang.camera_name, once:true},
           ]">
-            <div class="block rounded-xl border border-gray-800 p-4 shadow-xl hover:border-gray-500 hover:ring-1 hover:ring-gray-500 focus:outline-none focus:ring">
+            <div class="block rounded-xl border border-gray-800 p-4 shadow-xl focus:outline-none focus:ring">
               <div class="flex items-end">
                 <span :class="{'bg-green-900':data.actions[key]?.on, 'bg-gray-800':!data.actions[key]?.on}" class="inline-block rounded-lg p-4 mr-4">
                   <template x-if="key === 'light'">
@@ -139,28 +155,189 @@
                 <h2 x-text="name" class="mt-2 text-2xl font-bold"></h2>
               </div>
               <template x-if="data.actions[key]?.enabled && (data.user.role?.admin || data.user.role?.actions)">
-                <div>
-                  <p class="mt-4 text-sm text-gray-300 mb-1" x-text="lang.automated_handling"></p>
-                  <div class="grid grid-cols-3 gap-2 text-sm text-gray-300">
-                    <select class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
-                      <option value="temperature">Température</option>
-                      <option value="eq">égal à</option>
-                      <option value="gt">supérieur à</option>
-                    </select>
-                    <select class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
-                      <option value="lt">inférieur à</option>
-                      <option value="eq">égal à</option>
-                      <option value="gt">supérieur à</option>
-                    </select>
-                    <label>
-                      <input type="number" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
-                    </label>
+                <div x-data="{update:{target:key, conditions:data.actions[key]?.conditions ?? []}}">
+                  <p class="mt-4 text-sm text-gray-300" x-text="lang.automated_handling"></p>
+                  <p class="italic text-sm text-gray-400 mb-1" x-text="lang.automated_handling_description"></p>
+                  <template x-for="(conditions, j) in update.conditions">
+                    <div :key="j" class="border border-gray-700 rounded-md p-2 mb-2">
+                      <div class="text-sm mb-2 text-gray-300" x-text="lang.conditions_turn_on"></div>
+                      <template x-if="!once">
+                        <select x-model="conditions.duration" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm mb-2 text-sm">
+                          <option value="1m" x-text="lang['1m']"></option>
+                          <option value="5m" x-text="lang['5m']"></option>
+                          <option value="10m" x-text="lang['10m']"></option>
+                          <option value="15m" x-text="lang['15m']"></option>
+                          <option value="30m" x-text="lang['30m']"></option>
+                        </select>
+                      </template>
+                      <template x-if="once">
+                        <select x-model="conditions.duration" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm mb-2 text-sm">
+                          <option value="1m" x-text="lang.once"></option>
+                        </select>
+                      </template>
+                      <div class="text-sm mb-2 text-gray-300" x-text="lang.conditions"></div>
+                      <template x-for="(condition, i) in conditions.list">
+                        <div class="flex" :key="i">
+                          <div class="grid grid-cols-3 gap-2 text-sm text-gray-300 mb-2">
+                            <select x-model="condition.stat" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                              <option value="temperature" x-text="lang.temperature"></option>
+                              <option value="temperature_out" x-text="lang.temperature_out"></option>
+                              <option value="humidity" x-text="lang.humidity"></option>
+                              <option value="humidity_out" x-text="lang.humidity_out"></option>
+                              <option value="co2" x-text="lang.co2"></option>
+                              <option value="pressure" x-text="lang.pressure"></option>
+                              <option value="noise" x-text="lang.noise"></option>
+                              <option value="rain" x-text="lang.rain"></option>
+                              <option value="windstrength" x-text="lang.windstrength"></option>
+                              <option value="guststrength" x-text="lang.guststrength"></option>
+                              <option value="time" x-text="lang.time"></option>
+                            </select>
+                            <select x-model="condition.op" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                              <option value="le" x-text="lang.conditions_le"></option>
+                              <option value="eq" x-text="lang.conditions_eq"></option>
+                              <option value="ge" x-text="lang.conditions_ge"></option>
+                            </select>
+                            <label>
+                              <template x-if="condition.stat !== 'time'">
+                                <input x-model="condition.value" type="number" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                              </template>
+                              <template x-if="condition.stat === 'time'">
+                                <select x-model="condition.value" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
+                                  <option value="0">00h00</option>
+                                  <option value="0.25">00h15</option>
+                                  <option value="0.5">00h30</option>
+                                  <option value="0.75">00h45</option>
+                                  <option value="1">01h00</option>
+                                  <option value="1.25">01h15</option>
+                                  <option value="1.5">01h30</option>
+                                  <option value="1.75">01h45</option>
+                                  <option value="2">02h00</option>
+                                  <option value="2.25">02h15</option>
+                                  <option value="2.5">02h30</option>
+                                  <option value="2.75">02h45</option>
+                                  <option value="3">03h00</option>
+                                  <option value="3.25">03h15</option>
+                                  <option value="3.5">03h30</option>
+                                  <option value="3.75">03h45</option>
+                                  <option value="4">04h00</option>
+                                  <option value="4.25">04h15</option>
+                                  <option value="4.5">04h30</option>
+                                  <option value="4.75">04h45</option>
+                                  <option value="5">05h00</option>
+                                  <option value="5.25">05h15</option>
+                                  <option value="5.5">05h30</option>
+                                  <option value="5.75">05h45</option>
+                                  <option value="6">06h00</option>
+                                  <option value="6.25">06h15</option>
+                                  <option value="6.5">06h30</option>
+                                  <option value="6.75">06h45</option>
+                                  <option value="7">07h00</option>
+                                  <option value="7.25">07h15</option>
+                                  <option value="7.5">07h30</option>
+                                  <option value="7.75">07h45</option>
+                                  <option value="8">08h00</option>
+                                  <option value="8.25">08h15</option>
+                                  <option value="8.5">08h30</option>
+                                  <option value="8.75">08h45</option>
+                                  <option value="9">09h00</option>
+                                  <option value="9.25">09h15</option>
+                                  <option value="9.5">09h30</option>
+                                  <option value="9.75">09h45</option>
+                                  <option value="10">10h00</option>
+                                  <option value="10.25">10h15</option>
+                                  <option value="10.5">10h30</option>
+                                  <option value="10.75">10h45</option>
+                                  <option value="11">11h00</option>
+                                  <option value="11.25">11h15</option>
+                                  <option value="11.5">11h30</option>
+                                  <option value="11.75">11h45</option>
+                                  <option value="12">12h00</option>
+                                  <option value="12.25">12h15</option>
+                                  <option value="12.5">12h30</option>
+                                  <option value="12.75">12h45</option>
+                                  <option value="13">13h00</option>
+                                  <option value="13.25">13h15</option>
+                                  <option value="13.5">13h30</option>
+                                  <option value="13.75">13h45</option>
+                                  <option value="14">14h00</option>
+                                  <option value="14.25">14h15</option>
+                                  <option value="14.5">14h30</option>
+                                  <option value="14.75">14h45</option>
+                                  <option value="15">15h00</option>
+                                  <option value="15.25">15h15</option>
+                                  <option value="15.5">15h30</option>
+                                  <option value="15.75">15h45</option>
+                                  <option value="16">16h00</option>
+                                  <option value="16.25">16h15</option>
+                                  <option value="16.5">16h30</option>
+                                  <option value="16.75">16h45</option>
+                                  <option value="17">17h00</option>
+                                  <option value="17.25">17h15</option>
+                                  <option value="17.5">17h30</option>
+                                  <option value="17.75">17h45</option>
+                                  <option value="18">18h00</option>
+                                  <option value="18.25">18h15</option>
+                                  <option value="18.5">18h30</option>
+                                  <option value="18.75">18h45</option>
+                                  <option value="19">19h00</option>
+                                  <option value="19.25">19h15</option>
+                                  <option value="19.5">19h30</option>
+                                  <option value="19.75">19h45</option>
+                                  <option value="20">20h00</option>
+                                  <option value="20.25">20h15</option>
+                                  <option value="20.5">20h30</option>
+                                  <option value="20.75">20h45</option>
+                                  <option value="21">21h00</option>
+                                  <option value="21.25">21h15</option>
+                                  <option value="21.5">21h30</option>
+                                  <option value="21.75">21h45</option>
+                                  <option value="22">22h00</option>
+                                  <option value="22.25">22h15</option>
+                                  <option value="22.5">22h30</option>
+                                  <option value="22.75">22h45</option>
+                                  <option value="23">23h00</option>
+                                  <option value="23.25">23h15</option>
+                                  <option value="23.5">23h30</option>
+                                  <option value="23.75">23h45</option>
+                                </select>
+                              </template>
+                            </label>
+                          </div>
+                          <button @click="conditions.list.splice(i, 1)" class="flex items-center p-1 px-2 ml-2 mb-2 rounded-md border-red-500 bg-red-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                            <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="12" viewBox="0 0 384 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>
+                          </button>
+                        </div>
+                      </template>
+                      <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                        <button @click="conditions.list.push({stat:'temperature', op:'eq', value:0})" class="flex items-center p-1 px-2 rounded-md border-green-500 bg-green-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                          <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
+                          <span x-text="lang.conditions_add_one"></span>
+                        </button>
+                        <button @click="update.conditions.splice(j, 1)" class="flex items-center p-1 px-2 mr-2 rounded-md border-red-500 bg-red-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                          <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="12" viewBox="0 0 384 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>
+                          <span x-text="lang.delete"></span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                  <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
+                    <button @click="updateActionCondition(data, update)" class="flex items-center p-1 px-2 mr-2 rounded-md border-yellow-500 bg-yellow-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                      <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M48 96V416c0 8.8 7.2 16 16 16H384c8.8 0 16-7.2 16-16V170.5c0-4.2-1.7-8.3-4.7-11.3l33.9-33.9c12 12 18.7 28.3 18.7 45.3V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96C0 60.7 28.7 32 64 32H309.5c17 0 33.3 6.7 45.3 18.7l74.5 74.5-33.9 33.9L320.8 84.7c-.3-.3-.5-.5-.8-.8V184c0 13.3-10.7 24-24 24H104c-13.3 0-24-10.7-24-24V80H64c-8.8 0-16 7.2-16 16zm80-16v80H272V80H128zm32 240a64 64 0 1 1 128 0 64 64 0 1 1 -128 0z"/></svg>
+                      <span x-text="lang.edit"></span>
+                    </button>
+                    <button @click="update.conditions.push({duration:'1m', list:[]})" class="flex items-center p-1 px-2 rounded-md border-green-500 bg-green-800 shadow-sm disabled:opacity-25 disabled:cursor-not-allowed">
+                      <svg class="mr-1" fill="currentColor" xmlns="http://www.w3.org/2000/svg" height="16" width="14" viewBox="0 0 448 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2023 Fonticons, Inc.--><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>
+                      <span x-text="lang.conditions_add_set"></span>
+                    </button>
                   </div>
+                  <span class="my-2 text-red-700" x-text="data.errors[`conditions_${key}`]"></span>
+                  <span class="my-2 text-green-700" x-text="data.success[`conditions_${key}`]"></span>
                 </div>
               </template>
               <template x-if="data.actions[key]?.enabled && (data.user.role?.admin || data.user.role?.actions)">
                 <div>
                   <p class="mt-4 text-sm text-gray-300 mb-1" x-text="lang.manual_handling"></p>
+                  <p class="italic text-sm text-gray-400 mb-1" x-text="lang.manual_handling_description"></p>
                   <template x-if="!data.actions[key]?.on">
                     <div x-data="{update:{action:{target:key, action:'on', duration:'1m'}}}" class="mt-2 text-sm text-gray-300 mb-1">
                       <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
@@ -169,7 +346,7 @@
                           <span x-text="lang.manual_start"></span>
                         </button>
                         <select x-model="update.action.duration" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
-                          <template x-for="value in ['1m', '5m', '10m', '15m', '30m', '1h', '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', '10h', '11h', '12h']">
+                          <template x-for="value in (once ? ['once'] : ['1m', '5m', '10m', '15m', '30m', '1h', '2h', '3h', '4h', '5h', '6h', '7h', '8h', '9h', '10h', '11h', '12h'])">
                             <option :value="value" x-text="lang[value]"></option>
                           </template>
                         </select>
@@ -194,6 +371,7 @@
               <template x-if="data.user.role?.admin || data.user.role?.actions">
                 <div>
                   <p class="mt-4 text-sm text-gray-300 mb-1" x-text="lang.action_manage"></p>
+                  <p class="italic text-sm text-gray-400 mb-1" x-text="lang.action_manage_description"></p>
                   <template x-if="!data.actions[key]?.enabled">
                     <div x-data="{update:{action:{target:key, action:'enable'}}}" class="mt-2 text-sm text-gray-300 mb-1">
                       <div class="grid grid-cols-2 gap-2 text-sm text-gray-300">
@@ -227,7 +405,7 @@
     <!-- Videos -->
     <template x-if="data.system.public.video || data.user.username">
       <div>
-        <h1 class="text-2xl mb-4" x-text="lang.video_name"></h1>
+        <h1 class="text-2xl mb-4 mt-16" x-text="lang.video_name"></h1>
         <div class="grid grid-cols-2 gap-4 mb-4">
           <div class="relative h-96 overflow-hidden rounded-lg bg-gray-800">
             <img class="absolute inset-0 h-full w-full object-cover" alt="" src="/stream/0">
@@ -239,7 +417,7 @@
     <!-- History -->
     <template x-if="data.system.public.history || data.user.username">
       <section>
-        <h1 class="text-2xl" x-text="lang.history"></h1>
+        <h1 class="text-2xl mt-16" x-text="lang.history"></h1>
         <div class="overflow-x-auto rounded-md my-4">
           <table class="min-w-full divide-y-2 divide-gray-600 bg-gray-900 text-sm">
             <thead class="bg-gray-950">
@@ -286,7 +464,8 @@
         <!-- Users list -->
         <template x-if="data.users.length">
           <section>
-            <h1 class="text-2xl" x-text="lang.users_manage"></h1>
+            <h1 class="text-2xl mt-4" x-text="lang.users_manage"></h1>
+            <div class="text-gray-400 italic mb-1" x-text="lang.users_manage_description"></div>
             <div class="overflow-x-auto rounded-md my-4">
               <table class="min-w-full divide-y-2 divide-gray-600 bg-gray-900 text-sm">
                 <thead class="bg-gray-950">
@@ -414,16 +593,20 @@
         <!-- Configure system -->
         <template x-if="data.user.role?.admin || data.user.role?.system">
           <section>
-            <h1 class="text-2xl mb-4" x-text="lang.system_manage"></h1>
-            <div class="font-bold my-2" x-text="lang.system_general"></div>
-            <span x-text="lang.system_autologout"></span><br>
-            <label>
-              <input type="number" x-model="data.system.autologout" min="1" max="14" class="p-1 px-2 rounded-md border-gray-500 bg-gray-800 shadow-sm">
-            </label>
-            <div class="font-bold my-2" x-text="lang.system_public"></div>
+            <h1 class="text-2xl mb-4 mt-16" x-text="lang.system_manage"></h1>
+            <div class="text-lg font-bold mb-2 mt-8" x-text="lang.system_general"></div>
+            <div x-text="lang.system_autologout"></div>
+            <div class="text-gray-400 italic mb-1" x-text="lang.system_autologout_description"></div>
+            <select x-model="data.system.autologout" class="p-1 px-2 w-48 rounded-md border-gray-500 bg-gray-800 shadow-sm mb-2">
+              <template x-for="i in 14">
+                <option :value="i" x-text="`${i} ${lang.day}`"></option>
+              </template>
+            </select>
+            <div class="text-lg font-bold mb-2 mt-8" x-text="lang.system_public"></div>
             <template x-for="key in ['stats', 'actions', 'history', 'images', 'video']">
               <div class="mb-2">
-                <span x-text="lang[`system_public_${key}`]"></span>
+                <div x-text="lang[`system_public_${key}`]"></div>
+                <div class="text-gray-400 italic mb-1" x-text="lang[`system_public_${key}_description`]"></div>
                 <label class="block relative h-6 w-12 cursor-pointer">
                   <input x-model="data.system.public[key]" type="checkbox" class="peer sr-only">
                   <span :class="{'bg-gray-300':!data.system.public[key], 'bg-sky-500':data.system.public[key]}" class="absolute inset-0 rounded-full transition"></span>
@@ -437,13 +620,45 @@
             </button>
             <span class="my-2 text-red-700" x-text="data.errors.system"></span>
             <span class="my-2 text-green-700" x-text="data.success.system"></span>
+            <div class="text-lg font-bold mt-8" x-text="lang.system_modules"></div>
+            <div class="text-gray-400 italic mb-1" x-text="lang.system_modules_description"></div>
+            <div class="overflow-x-auto rounded-md my-4">
+              <table class="min-w-full divide-y-2 divide-gray-600 bg-gray-900 text-sm">
+                <thead class="bg-gray-950">
+                  <tr>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.system_modules_type"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.system_modules_mac"></th>
+                    <th class="whitespace-nowrap px-4 py-2 font-bold text-left" x-text="lang.system_modules_ip"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-600">
+                  <template x-for="{type, mac} in data.modules.netatmo_modules">
+                    <tr class="odd:bg-gray-800 even:bg-gray-700">
+                      <td x-text="lang[`system_modules_${type}`]" class="whitespace-nowrap px-4 py-2 font-medium font-bold"></td>
+                      <td x-text="mac" class="whitespace-nowrap px-4 py-2"></td>
+                      <td>-</td>
+                    </tr>
+                  </template>
+                  <template></template>
+                  <template x-for="{action, mac, ip} in data.modules.tp_modules">
+                    <tr class="odd:bg-gray-800 even:bg-gray-700">
+                      <td x-text="`${lang.system_modules_plug} (${lang[`${action}_name`]})`" class="whitespace-nowrap px-4 py-2 font-medium font-bold"></td>
+                      <td x-text="mac" class="whitespace-nowrap px-4 py-2"></td>
+                      <td x-text="ip"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
           </section>
         </template>
 
         <!-- Current user -->
         <div>
-          <h1 x-text="data.user.username" class="text-2xl"></h1>
+          <h1 x-text="`${lang.user_manage} ${data.user.username}`" class="text-2xl mt-16"></h1>
           <div class="mt-4">
+            <div x-text="lang.roles"></div>
+            <div class="text-gray-400 italic mb-1" x-text="lang.roles_description"></div>
             <template x-for="(value, role) in data.user.role">
               <template x-if="value">
                 <span x-text="{admin:lang.users_is_admin, users:lang.users_can_manage_users, actions:lang.users_can_manage_actions}[role] ?? role" class="whitespace-nowrap rounded-full bg-purple-100 px-2.5 py-0.5 mr-2 text-sm text-purple-700"></span>
@@ -451,7 +666,8 @@
             </template>
           </div>
           <div class="my-4">
-            <span class="font-bold" x-text="lang.change_password"></span>
+            <div x-text="lang.change_password"></div>
+            <div class="text-gray-400 italic mb-1" x-text="lang.change_password_description"></div>
             <form @submit.prevent="" x-data="{update:{user:{username:data.user.username, password:''}, confirm:{password:''}}}" class="mt-2 flex flex-col max-w-lg">
               <input x-model="update.user.password" type="password" class="p-1 px-2 mb-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.password_new">
               <input x-model="update.confirm.password" type="password" :class="{'bg-red-950':update.user.password !== update.confirm.password}" class="p-1 px-2 mb-2 rounded-md border-gray-500 bg-gray-800 shadow-sm" :placeholder="lang.password_confirm">
@@ -469,7 +685,7 @@
   </div>
 
   <!-- Footer -->
-  <footer class="bg-gray-950 py-2">
+  <footer class="bg-gray-950 py-2 mt-16">
     <div class="container mx-auto px-4">
       <a href="https://github.com/lowlighter/gardenia" class="cursor-pointer hover:text-sky-500">Gardenia</a>
     </div>

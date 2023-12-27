@@ -5,6 +5,7 @@ import { lang } from "./lang.ts"
 import { Status } from "std/http/status.ts"
 import { updateHistory } from "./history.ts"
 import { deepMerge } from "std/collections/deep_merge.ts"
+import { settings } from "./app.ts"
 
 // Register default values
 const system = { autologout: 3, public: { stats: true, actions: true, history: true, images: true, video: true } }
@@ -44,4 +45,15 @@ export async function updateSystem(request: Request, session?: string) {
 export async function getSystem(_: Request, _session?: string) {
   const { value: system } = await kv.get<{ [key: PropertyKey]: string }[]>(["system"])
   return new Response(JSON.stringify(system), { headers })
+}
+
+/** Get modules */
+export async function getModules(_: Request, session?: string) {
+  if (!await isAllowedTo(session, ["system"])) {
+    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+  }
+  return new Response(JSON.stringify({
+    netatmo_modules: settings.netatmo_modules,
+    tp_modules: settings.tp_modules,
+  }), {headers})
 }

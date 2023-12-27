@@ -72,6 +72,9 @@ globalThis.getStats = async function getStats(_data) {
 /** Fetch system config */
 async function getSystem(_data) {
   _data.system = await fetch("/api/system").then((response) => response.json())
+  if (_data.user.role?.admin || _data.user.role?.system) {
+  _data.modules = await fetch("/api/modules").then((response) => response.json())
+  }
 }
 
 /** Fetch actions */
@@ -155,6 +158,20 @@ globalThis.updateAction = function updateAction(_data, _action) {
   })
 }
 
+/** Update action conditions */
+globalThis.updateActionCondition = function updateActionCondition(_data, _body) {
+  return api({
+    section: `conditions_${_body.target}`,
+    method: "PATCH",
+    route: "/api/actions/conditions",
+    _data,
+    body: _body,
+    success() {
+      refresh(_data, { actions: true, history: true })
+    },
+  })
+}
+
 /** Update system */
 globalThis.updateSystem = function updateSystem(_data) {
   return api({
@@ -179,8 +196,11 @@ globalThis.login = function login(_data, { auto = false } = {}) {
     route: "/login",
     _data,
     body: { username, password },
+    error() {
+      document.cookie = "gardenia_session=; SameSite=Lax; expires=Thu, 01 Jan 1970 00:00:01 GMT"
+    },
     success({ session, user }) {
-      document.cookie = `gardenia_session=${session}`
+      document.cookie = `gardenia_session=${session}; SameSite=Lax`
       Object.assign(_data, { user })
       refresh(_data)
     },

@@ -6,6 +6,6 @@ const headers = new Headers({ "Content-Type": "application/json" })
 
 /** Get metadata */
 export function getMeta(_: Request, __?: string) {
-  const meta = { name: settings.name }
+  const meta = { name: settings.name, version: "1.0.0" }
   return new Response(JSON.stringify(meta), { headers })
 }

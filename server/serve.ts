@@ -5,13 +5,13 @@ import { fromFileUrl } from "std/path/from_file_url.ts"
 import { getCookies } from "std/http/cookie.ts"
 import { addUser, deleteUser, getUsers, login, logout, updateUser } from "./users.ts"
 import { getHistory, updateHistory } from "./history.ts"
-import { getActions, updateAction } from "./actions.ts"
+import { getActions, updateAction, updateActionCondition } from "./actions.ts"
 import { settings } from "./app.ts"
 import { getStats } from "./stats.ts"
 import { getStream } from "./streams.ts"
 import { lang } from "./lang.ts"
 import { getMeta } from "./meta.ts"
-import { getSystem, updateSystem } from "./system.ts"
+import { getSystem, updateSystem, getModules } from "./system.ts"
 import { fetchNetatmoData, refreshNetatmoToken } from "./netatmo.ts"
 
 /** Serve files */
@@ -48,6 +48,10 @@ export async function serve({ init = true } = {}) {
       case (url.pathname === "/api/system") && (request.method === "PATCH"):
         return updateSystem(request, session)
 
+      // Get modules
+      case (url.pathname === "/api/modules") && (request.method === "GET"):
+        return getModules(request, session)
+
       // List users
       case (url.pathname === "/api/users") && (request.method === "GET"):
         return getUsers(request, session)
@@ -71,6 +75,9 @@ export async function serve({ init = true } = {}) {
       // Update action
       case (url.pathname === "/api/actions") && (request.method === "PATCH"):
         return updateAction(request, session)
+      // Update action conditions
+      case (url.pathname === "/api/actions/conditions") && (request.method === "PATCH"):
+        return updateActionCondition(request, session)
 
       // Camera #1
       case url.pathname === "/stream/0":

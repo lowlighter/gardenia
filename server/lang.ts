@@ -163,4 +163,9 @@ export const lang = {
   conditions_turn_on: "Démarrer",
   outdoor: "en extérieur",
   gust: "en rafales",
+  already_exited: "Le service est déjà en cours d'arrêt",
+  system_reboot: "Redémarrage du service",
+  system_reboot_description:
+    "Redémarrer le service déconnectera tous les utilisateurs, rechargera la configuration statique, mettra à jour l'application et peut potentiellement résoudre certains problèmes",
+  reboot: "Redémarrer",
 }

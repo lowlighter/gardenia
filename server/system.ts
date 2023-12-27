@@ -6,6 +6,7 @@ import { Status } from "std/http/status.ts"
 import { updateHistory } from "./history.ts"
 import { deepMerge } from "std/collections/deep_merge.ts"
 import { settings } from "./app.ts"
+import { delay } from "std/async/delay.ts"
 
 // Register default values
 const system = { autologout: 3, public: { stats: true, actions: true, history: true, images: true, video: true } }
@@ -25,7 +26,7 @@ const system = { autologout: 3, public: { stats: true, actions: true, history: t
 export { system }
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json" })
+const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
 
 /** Update system */
 export async function updateSystem(request: Request, session?: string) {
@@ -61,4 +62,20 @@ export async function getModules(_: Request, session?: string) {
     }),
     { headers },
   )
+}
+
+/** Is exited */
+let exited = false
+
+/** Exit service */
+export async function exitService(_: Request, session?: string) {
+  if (!await isAllowedTo(session, ["system"])) {
+    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+  }
+  if (exited) {
+    return new Response(JSON.stringify({ error: lang.already_exited }), { status: Status.BadRequest, headers })
+  }
+  exited = true
+  delay(5000).then(() => Deno.exit(1))
+  return new Response(JSON.stringify({ success: true }), { headers })
 }

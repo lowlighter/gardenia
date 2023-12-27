@@ -39,7 +39,7 @@ for (const { picamera, port } of settings.videos as unknown as { picamera?: bool
 }
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json" })
+const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
 
 /** Get actions */
 export async function getActions(_: Request, session?: string) {
@@ -56,10 +56,10 @@ export async function getActions(_: Request, session?: string) {
 
 /** Update action */
 export async function updateAction(request: Request, session?: string) {
-  if ((!session) || (!await isAllowedTo(session, ["actions"]))) {
+  if (!await isAllowedTo(session, ["actions"])) {
     return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
   }
-  const { value: actor } = await kv.get<string>(["sessions", session])
+  const { value: actor } = await kv.get<string>(["sessions", session!])
   const { target: name, action, duration } = await request.json()
   const { value: target } = await kv.get<Record<string, unknown>>(["actions", name])
   if (!target) {
@@ -138,10 +138,10 @@ export async function updateAction(request: Request, session?: string) {
 
 /** Update action conditions */
 export async function updateActionCondition(request: Request, session?: string) {
-  if ((!session) || (!await isAllowedTo(session, ["actions"]))) {
+  if (!await isAllowedTo(session, ["actions"])) {
     return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
   }
-  const { value: actor } = await kv.get<string>(["sessions", session])
+  const { value: actor } = await kv.get<string>(["sessions", session!])
   const { target: name, conditions } = await request.json()
   const { value: target } = await kv.get<Record<string, unknown>>(["actions", name])
   if (!target) {

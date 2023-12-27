@@ -11,7 +11,7 @@ import { getStats } from "./stats.ts"
 import { getStream } from "./streams.ts"
 import { lang } from "./lang.ts"
 import { getMeta } from "./meta.ts"
-import { getModules, getSystem, updateSystem } from "./system.ts"
+import { exitService, getModules, getSystem, updateSystem } from "./system.ts"
 import { getNextRefresh, refresh } from "./refresh.ts"
 
 /** Serve files */
@@ -47,6 +47,9 @@ export async function serve() {
       // Update system
       case (url.pathname === "/api/system") && (request.method === "PATCH"):
         return updateSystem(request, session)
+      // Exit service
+      case (url.pathname === "/api/system/exit") && (request.method === "DELETE"):
+        return exitService(request, session)
 
       // Get modules
       case (url.pathname === "/api/modules") && (request.method === "GET"):

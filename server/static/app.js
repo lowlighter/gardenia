@@ -196,6 +196,19 @@ globalThis.updateSystem = function updateSystem(_data) {
   })
 }
 
+/** Exit seervice */
+globalThis.exitService = function exitService(_data) {
+  return api({
+    section: "system",
+    method: "DELETE",
+    route: "/api/system/exit",
+    _data,
+    success() {
+      refresh(_data, { system: true })
+    },
+  })
+}
+
 /** User login */
 globalThis.login = function login(_data, { auto = false } = {}) {
   const username = document.querySelector('input[name="username"]')?.value
@@ -233,6 +246,9 @@ globalThis.logout = function logout(_data) {
 
 /** Refresh data */
 function refresh(_data, { refresh = true, pictures = true, actions = true, users = true, history = true, stats = true, system = true } = {}) {
+  if (system) {
+    getSystem(_data)
+  }
   if (refresh) {
     getRefresh(_data)
   }
@@ -250,9 +266,6 @@ function refresh(_data, { refresh = true, pictures = true, actions = true, users
   }
   if (stats) {
     getStats(_data)
-  }
-  if (system) {
-    getSystem(_data)
   }
 }
 

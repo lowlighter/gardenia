@@ -31,7 +31,7 @@ for await (const { key } of entries) {
 }
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json" })
+const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
 
 /** Login */
 export async function login(request: Request, session?: string) {

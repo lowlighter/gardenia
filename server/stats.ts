@@ -6,7 +6,7 @@ import { Status } from "std/http/status.ts"
 import { system } from "./system.ts"
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json" })
+const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
 
 // Specs
 const specs = {

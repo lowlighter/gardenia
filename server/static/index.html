@@ -115,7 +115,7 @@
     </template>
 
     <!-- Actions -->
-    <template x-if="data.system.public.stats || data.user.username">
+    <template x-if="data.system.public.actions || data.user.username">
       <div>
         <div class="my-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <template x-for="{key, name, once} in [
@@ -439,7 +439,7 @@
         <h1 class="text-2xl mb-4 mt-16" x-text="lang.video_and_camera"></h1>
         <div class="grid gap-4 mb-4">
           <div class="relative h-96 overflow-hidden rounded-lg bg-gray-800">
-            <img class="absolute inset-0 h-full w-full object-cover" alt="" :src="picture || data.pictures.at(-1) || ''">
+            <img class="absolute inset-0 h-full w-full object-cover" alt="" :src="picture || data.pictures?.at(-1) || ''">
           </div>
         </div>
         <select x-model="picture" class="p-1 px-2 w-full rounded-md border-gray-500 bg-gray-800 shadow-sm">
@@ -447,7 +447,7 @@
             <option value="/stream/0" x-text="lang.video_real_time"></option>
           </template>
           <template x-for="picture in data.pictures">
-            <option :value="picture" x-text="picture ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(+picture.replace('/pictures/', '')) : picture"></option>
+            <option :value="picture" x-text="picture?.startsWith('/pictures/') ? new Intl.DateTimeFormat(lang.code, {dateStyle:'full', timeStyle:'medium'}).format(+picture.replace('/pictures/', '')) : picture"></option>
           </template>
         </select>
       </div>

@@ -36,7 +36,9 @@ export async function updateSystem(request: Request, session?: string) {
   if (!value) {
     return new Response(JSON.stringify({ error: lang.unknown_error }), { status: Status.InternalServerError, headers })
   }
-  await kv.set(["system"], deepMerge(value, await request.json()))
+  const update = deepMerge(value, await request.json())
+  update.autologout = Number(update.autologout)
+  await kv.set(["system"], update)
   updateHistory(null, lang.system_updated, ["system"])
   return new Response(JSON.stringify({ success: true }), { headers })
 }

@@ -2,8 +2,8 @@
   "repository": "https://github.com/lowlighter/gardenia",
   "version": "0.1.0",
   "tasks": {
-    "run": "deno run --allow-read --allow-write=.kv --allow-run=python3 --allow-net mod.ts",
-    "dev": "deno run --allow-read --allow-write=.kv --allow-run=python3 --allow-net --watch mod.ts"
+    "run": "deno run --allow-read --allow-write=.kv,server/pictures --allow-run=python3 --allow-net mod.ts",
+    "dev": "deno run --allow-read --allow-write=.kv,server/pictures --allow-run=python3 --allow-net --watch mod.ts"
   },
   "imports": {
     "std/": "https://deno.land/std@0.205.0/"

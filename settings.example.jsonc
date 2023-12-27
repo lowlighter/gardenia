@@ -1,7 +1,7 @@
 {
   // Gardenia server settings
   "name": "Gardenia",
-  "port": 8080,
+  "port": 4000,
   "admin_password": "admin_default_password",
   // Delta epsilon (used to compare float values)
   "delta_epsilon": 0.125,
@@ -11,7 +11,7 @@
   "pictures": "server/pictures",
   // Video streams
   "videos": [
-    { "url": "http://0.0.0.0", "port": 8000, "picamera": true }
+    { "url": "http://0.0.0.0", "port": 4001, "picamera": true }
   ],
   // Netatmo settings (indoor station must be first)
   "netatmo_modules": [

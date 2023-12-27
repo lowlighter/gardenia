@@ -3,9 +3,15 @@
   "name": "Gardenia",
   "port": 8080,
   "admin_password": "admin_default_password",
+  // Delta epsilon (used to compare float values)
+  "delta_epsilon": 0.125,
+  // Set to true to simulate data (useful for testing)
+  "simulated": false,
+  // Pictures directory
+  "pictures": "server/static/pictures",
   // Video streams
   "videos": [
-    "http://0.0.0.0:8000"
+    { "url": "http://0.0.0.0", "port": 8000, "picamera": true }
   ],
   // Netatmo settings (indoor station must be first)
   "netatmo_modules": [
@@ -21,9 +27,9 @@
   "tp_username": "no-reply@gardenia.com",
   "tp_password": "********",
   "tp_modules": [
-    { "action": "light", "ip": "10.x.x.x" },
-    { "action": "heat", "ip": "10.x.x.x" },
-    { "action": "aeration", "ip": "10.x.x.x" },
-    { "action": "water", "ip": "10.x.x.x" }
+    { "action": "light", "ip": "10.x.x.x", "mac": "xx:xx:xx:xx:xx:xx" },
+    { "action": "heat", "ip": "10.x.x.x", "mac": "xx:xx:xx:xx:xx:xx" },
+    { "action": "aeration", "ip": "10.x.x.x", "mac": "xx:xx:xx:xx:xx:xx" },
+    { "action": "water", "ip": "10.x.x.x", "mac": "xx:xx:xx:xx:xx:xx" }
   ]
 }

@@ -322,11 +322,10 @@ export async function getPictures(_: Request, session?: string) {
     return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
   }
   const entries = await Array.fromAsync(Deno.readDir(settings.pictures))
-  let pictures = entries.filter((entry) => entry.isFile && entry.name.endsWith(".png")).map((entry) => Number(entry.name.replace(".png", ""))).sort((a, b) => b - a)
+  let pictures = entries.filter((entry) => entry.isFile && entry.name.endsWith(".png")).map((entry) => Number(entry.name.replace(".png", ""))).sort((a, b) => b - a).map((name) => `/pictures/${name}`)
   if (!await isAllowedTo(session, [])) {
     pictures = pictures.slice(-1)
   }
-  pictures = pictures.map((picture) => `/pictures/${picture}`)
   return new Response(JSON.stringify(pictures), { headers })
 }
 

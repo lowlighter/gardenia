@@ -1,5 +1,5 @@
 // Imports
-import { fetchNetatmoData } from "./netatmo.ts"
+import { fetchNetatmoData, refreshNetatmoToken } from "./netatmo.ts"
 import { checkActionsConditions } from "./actions.ts"
 
 // Headers
@@ -12,6 +12,7 @@ let tick = Date.now()
 export async function refresh({ init = false } = {}) {
   console.log("refreshing data...")
   if (init) {
+    await refreshNetatmoToken()
     await fetchNetatmoData(new Date(0))
   } else {
     await fetchNetatmoData()

@@ -88,6 +88,24 @@ export async function getStats(request: Request, session?: string) {
           Object.assign(summary, { graph: { labels, datasets, ...(specs as { [key: string]: Record<string, unknown> })[key] } })
         }
       }
+    } else {
+      const [borderColor, backgroundColor] = {
+        windangle: ["#238636", "#12261e"],
+        gustangle: ["#09b43a", "#0a2517"],
+      }[key]!
+      const datasets = [{
+        label: [(lang as { [key: string]: string })[key]],
+        data: new Array(360).fill(0).map((_) => Math.random()),
+        borderColor,
+        backgroundColor: `${backgroundColor}40`,
+        fill: true,
+      }]
+      if (key === "gustangle") {
+        const { graph } = result.windangle
+        graph.datasets.push(...datasets)
+      } else {
+        Object.assign(summary, { graph: { datasets, ...(specs as { [key: string]: Record<string, unknown> })[key] } })
+      }
     }
     result[key] = summary
   }

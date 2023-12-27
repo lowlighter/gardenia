@@ -66,6 +66,7 @@
               {key:'noise', label:lang.noise, unit:'dB'},
               {key:'rain', label:lang.rain, unit:'mm/h'},
               {key:'windstrength', label:lang.windstrength, unit:'m/s'},
+              {key:'windangle', label:lang.windangle, unit:'°'},
               {key:'illuminance', label:lang.illuminance, unit:'L'}
             ]">
               <div class="p-4">
@@ -117,7 +118,7 @@
     <!-- Actions -->
     <template x-if="data.system.public.actions || data.user.username">
       <div>
-        <div class="my-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div class="my-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           <template x-for="{key, name, once} in [
             {key:'light', name:lang.light_name},
             {key:'heat', name:lang.heat_name},

@@ -17,7 +17,7 @@ function updateGraphs(_data) {
     const { labels = [], datasets = [] } = _data.stats?.[type]?.graph ?? {}
     if (!charts[type]) {
       charts[type] = new Chart(document.querySelector(`[data-graph="${type}"]`), {
-        type: "line",
+        type: type.endsWith("angle") ? "polarArea" : "line",
         data: {
           labels,
           datasets,
@@ -41,6 +41,11 @@ function updateGraphs(_data) {
                     return ""
                   }
                 },
+              },
+            },
+            r: {
+              ticks: {
+                display: false,
               },
             },
           },

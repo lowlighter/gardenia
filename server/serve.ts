@@ -11,16 +11,12 @@ import { getStats } from "./stats.ts"
 import { getStream } from "./streams.ts"
 import { lang } from "./lang.ts"
 import { getMeta } from "./meta.ts"
-import { getSystem, updateSystem, getModules } from "./system.ts"
-import { fetchNetatmoData, refreshNetatmoToken } from "./netatmo.ts"
+import { getModules, getSystem, updateSystem } from "./system.ts"
+import { getNextRefresh, refresh } from "./refresh.ts"
 
 /** Serve files */
-export async function serve({ init = true } = {}) {
-  if (init) {
-    await refreshNetatmoToken()
-    await fetchNetatmoData(new Date(0))
-  }
-
+export async function serve() {
+  await refresh()
   Deno.serve({ port: Number(settings.port), onListen: () => void null }, (request) => {
     console.log(request.url)
     const url = new URL(request.url)
@@ -40,6 +36,10 @@ export async function serve({ init = true } = {}) {
       // Get metadata
       case (url.pathname === "/api/meta") && (request.method === "GET"):
         return getMeta(request, session)
+
+      // Get next refresh tick
+      case (url.pathname === "/api/refresh") && (request.method === "GET"):
+        return getNextRefresh(request, session)
 
       // Get system
       case (url.pathname === "/api/system") && (request.method === "GET"):

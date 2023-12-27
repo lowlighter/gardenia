@@ -69,11 +69,16 @@ globalThis.getStats = async function getStats(_data) {
   updateGraphs(_data)
 }
 
+/** Fetch refresh data */
+async function getRefresh(_data) {
+  _data.refresh = await fetch("/api/refresh").then((response) => response.json())
+}
+
 /** Fetch system config */
 async function getSystem(_data) {
   _data.system = await fetch("/api/system").then((response) => response.json())
   if (_data.user.role?.admin || _data.user.role?.system) {
-  _data.modules = await fetch("/api/modules").then((response) => response.json())
+    _data.modules = await fetch("/api/modules").then((response) => response.json())
   }
 }
 
@@ -222,7 +227,10 @@ globalThis.logout = function logout(_data) {
 }
 
 /** Refresh data */
-function refresh(_data, { actions = true, users = true, history = true, stats = true, system = true } = {}) {
+function refresh(_data, { refresh = true, actions = true, users = true, history = true, stats = true, system = true } = {}) {
+  if (refresh) {
+    getRefresh(_data)
+  }
   if (actions) {
     getActions(_data)
   }

@@ -55,7 +55,6 @@ export async function fetchNetatmoData(t = new Date(), { authrefresh = true } = 
       await kv.set(["stats", date.getTime()], data)
     }
   }
-  setTimeout(fetchNetatmoData, 30 * 60 * 1000)
   updateHistory(null, lang.fetched_netatmo_data)
 }
 

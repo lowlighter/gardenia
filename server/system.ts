@@ -52,8 +52,11 @@ export async function getModules(_: Request, session?: string) {
   if (!await isAllowedTo(session, ["system"])) {
     return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
   }
-  return new Response(JSON.stringify({
-    netatmo_modules: settings.netatmo_modules,
-    tp_modules: settings.tp_modules,
-  }), {headers})
+  return new Response(
+    JSON.stringify({
+      netatmo_modules: settings.netatmo_modules,
+      tp_modules: settings.tp_modules,
+    }),
+    { headers },
+  )
 }

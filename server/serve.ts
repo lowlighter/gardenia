@@ -16,7 +16,7 @@ import { getNextRefresh, refresh } from "./refresh.ts"
 
 /** Serve files */
 export async function serve() {
-  await refresh()
+  await refresh({ init: true })
   Deno.serve({ port: Number(settings.port), onListen: () => void null }, (request) => {
     console.log(request.url)
     const url = new URL(request.url)

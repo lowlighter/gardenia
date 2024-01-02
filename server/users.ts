@@ -19,7 +19,12 @@ for await (const { key } of entries) {
   if (!value) {
     await kv.set(["users", username], {
       username,
-      password: encodeHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(settings.admin_password))),
+      password: encodeHex(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(settings.admin_password),
+        ),
+      ),
       logged: null,
       role: {
         admin: true,
@@ -31,7 +36,10 @@ for await (const { key } of entries) {
 }
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
+const headers = new Headers({
+  "Content-Type": "application/json",
+  "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate",
+})
 
 /** Login */
 export async function login(request: Request, session?: string) {
@@ -39,44 +47,80 @@ export async function login(request: Request, session?: string) {
   if (session) {
     const { value: username } = await kv.get<string>(["sessions", session])
     if (username) {
-      const { value } = await kv.get<{ password: string; [key: PropertyKey]: unknown }>(["users", username])
+      const { value } = await kv.get<
+        { password: string; [key: PropertyKey]: unknown }
+      >(["users", username])
       if (!value) {
-        return new Response(JSON.stringify({ error: lang.bad_request }), { status: Status.BadRequest, headers })
+        return new Response(JSON.stringify({ error: lang.bad_request }), {
+          status: Status.BadRequest,
+          headers,
+        })
       }
       const { password, ...user } = value
-      await kv.set(["users", username], { ...user, password, logged: Date.now() })
-      return new Response(JSON.stringify({ success: true, session, user }), { headers })
+      await kv.set(["users", username], {
+        ...user,
+        password,
+        logged: Date.now(),
+      })
+      return new Response(JSON.stringify({ success: true, session, user }), {
+        headers,
+      })
     }
   }
   // New session
   {
     const { username, password } = await request.json()
     if ((!username) || (!password)) {
-      return new Response(JSON.stringify({ error: lang.bad_request }), { status: Status.BadRequest, headers })
+      return new Response(JSON.stringify({ error: lang.bad_request }), {
+        status: Status.BadRequest,
+        headers,
+      })
     }
-    const { value } = await kv.get<{ password: string; [key: PropertyKey]: unknown }>(["users", username])
+    const { value } = await kv.get<
+      { password: string; [key: PropertyKey]: unknown }
+    >(["users", username])
     if (!value) {
-      return new Response(JSON.stringify({ error: lang.login_failed }), { status: Status.Unauthorized, headers })
+      return new Response(JSON.stringify({ error: lang.login_failed }), {
+        status: Status.Unauthorized,
+        headers,
+      })
     }
     const { password: hashed, ...user } = value
-    const hash = encodeHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)))
+    const hash = encodeHex(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)),
+    )
     if ((!user) || (hash !== hashed)) {
-      return new Response(JSON.stringify({ error: lang.login_failed }), { status: Status.Unauthorized, headers })
+      return new Response(JSON.stringify({ error: lang.login_failed }), {
+        status: Status.Unauthorized,
+        headers,
+      })
     }
     const session = crypto.randomUUID()
     await kv.set(["sessions", session], username)
-    await kv.set(["users", username], { ...user, password: hashed, logged: Date.now() })
+    await kv.set(["users", username], {
+      ...user,
+      password: hashed,
+      logged: Date.now(),
+    })
     if (system.autologout) {
-      setTimeout(() => kv.delete(["sessions", session]), Number(system.autologout) * 24 * 60 * 1000)
+      setTimeout(
+        () => kv.delete(["sessions", session]),
+        Number(system.autologout) * 24 * 60 * 1000,
+      )
     }
-    return new Response(JSON.stringify({ success: true, session, user }), { headers })
+    return new Response(JSON.stringify({ success: true, session, user }), {
+      headers,
+    })
   }
 }
 
 /** Logout */
 export async function logout(_: Request, session?: string) {
   if (!session) {
-    return new Response(JSON.stringify({ error: lang.bad_request }), { status: Status.BadRequest, headers })
+    return new Response(JSON.stringify({ error: lang.bad_request }), {
+      status: Status.BadRequest,
+      headers,
+    })
   }
   const { value: username } = await kv.get(["sessions", session])
   if (!username) {
@@ -89,27 +133,48 @@ export async function logout(_: Request, session?: string) {
 /** List users */
 export async function getUsers(_: Request, session?: string) {
   if (!await isAllowedTo(session, ["users"])) {
-    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+    return new Response(JSON.stringify({ error: lang.forbidden }), {
+      status: Status.Forbidden,
+      headers,
+    })
   }
-  const entries = kv.list<{ password: string; [key: PropertyKey]: unknown }>({ prefix: ["users"] })
-  const users = [...await Array.fromAsync(entries)].map(({ value }) => (delete (value as { password?: string }).password, value))
+  const entries = kv.list<{ password: string; [key: PropertyKey]: unknown }>({
+    prefix: ["users"],
+  })
+  const users = [...await Array.fromAsync(entries)].map((
+    { value },
+  ) => (delete (value as { password?: string }).password, value))
   return new Response(JSON.stringify(users), { headers })
 }
 
 /** Add new user */
 export async function addUser(request: Request, session: string) {
   if (!await isAllowedTo(session, ["users"])) {
-    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+    return new Response(JSON.stringify({ error: lang.forbidden }), {
+      status: Status.Forbidden,
+      headers,
+    })
   }
   const { username, password, role = {} } = await request.json()
   const { value: exists } = await kv.get(["users", username])
   if (exists) {
-    return new Response(JSON.stringify({ error: lang.user_already_exists }), { status: Status.Conflict, headers })
+    return new Response(JSON.stringify({ error: lang.user_already_exists }), {
+      status: Status.Conflict,
+      headers,
+    })
+  }
+  if (["system", "buttons"].includes(username)) {
+    return new Response(JSON.stringify({ error: lang.user_reserved }), {
+      status: Status.Conflict,
+      headers,
+    })
   }
   await kv.set(["users", username], {
     username,
     logged: null,
-    password: encodeHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password))),
+    password: encodeHex(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)),
+    ),
     role,
   })
   updateHistory(username, lang.user_created, ["users"])
@@ -119,12 +184,18 @@ export async function addUser(request: Request, session: string) {
 /** Delete user */
 export async function deleteUser(request: Request, session: string) {
   if (!await isAllowedTo(session, ["users"])) {
-    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+    return new Response(JSON.stringify({ error: lang.forbidden }), {
+      status: Status.Forbidden,
+      headers,
+    })
   }
   const { username } = await request.json()
   const { value: exists } = await kv.get(["users", username])
   if (!exists) {
-    return new Response(JSON.stringify({ error: lang.user_does_not_exist }), { status: Status.NotFound, headers })
+    return new Response(JSON.stringify({ error: lang.user_does_not_exist }), {
+      status: Status.NotFound,
+      headers,
+    })
   }
   await kv.delete(["users", username])
   updateHistory(username, lang.user_deleted, ["users"])
@@ -136,31 +207,58 @@ export async function updateUser(request: Request, session: string) {
   const { value: actor } = await kv.get<string>(["sessions", session])
   const { username, password, role = {} } = await request.json()
   if (!username) {
-    return new Response(JSON.stringify({ error: lang.bad_request }), { status: Status.BadRequest, headers })
+    return new Response(JSON.stringify({ error: lang.bad_request }), {
+      status: Status.BadRequest,
+      headers,
+    })
   }
-  const { value: user } = await kv.get<{ password: string; role: { [role: PropertyKey]: boolean } }>(["users", username])
+  const { value: user } = await kv.get<
+    { password: string; role: { [role: PropertyKey]: boolean } }
+  >(["users", username])
   if (!user) {
-    return new Response(JSON.stringify({ error: lang.user_does_not_exist }), { status: Status.NotFound, headers })
+    return new Response(JSON.stringify({ error: lang.user_does_not_exist }), {
+      status: Status.NotFound,
+      headers,
+    })
   }
   if (password) {
-    user.password = encodeHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)))
+    user.password = encodeHex(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)),
+    )
     if (actor !== username) {
-      updateHistory(username, lang.user_password_updated.replaceAll("${actor}", actor!), ["users"])
+      updateHistory(
+        username,
+        lang.user_password_updated.replaceAll("${actor}", actor!),
+        ["users"],
+      )
     }
   }
   if (Object.keys(role).length) {
     if (!await isAllowedTo(session, ["users"])) {
-      return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+      return new Response(JSON.stringify({ error: lang.forbidden }), {
+        status: Status.Forbidden,
+        headers,
+      })
     }
     user.role = role
-    updateHistory(username, lang.user_roles_updated.replaceAll("${actor}", actor!).replaceAll("${roles}", Object.entries(role).filter(([_, v]) => v).map(([k]) => k).join(", ")), ["users"])
+    updateHistory(
+      username,
+      lang.user_roles_updated.replaceAll("${actor}", actor!).replaceAll(
+        "${roles}",
+        Object.entries(role).filter(([_, v]) => v).map(([k]) => k).join(", "),
+      ),
+      ["users"],
+    )
   }
   await kv.set(["users", username], user)
   return new Response(JSON.stringify({ success: true }), { headers })
 }
 
 /** Check if user associated to sessions has all required roles to perform given action */
-export async function isAllowedTo(session: string | void, roles = [] as string[]) {
+export async function isAllowedTo(
+  session: string | void,
+  roles = [] as string[],
+) {
   if (!session) {
     return false
   }
@@ -169,7 +267,9 @@ export async function isAllowedTo(session: string | void, roles = [] as string[]
     if (!username) {
       return false
     }
-    const { value: user } = await kv.get<{ role: { [key: PropertyKey]: boolean } }>(["users", username])
+    const { value: user } = await kv.get<
+      { role: { [key: PropertyKey]: boolean } }
+    >(["users", username])
     if (!user) {
       return false
     }

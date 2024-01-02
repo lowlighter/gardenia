@@ -9,13 +9,26 @@ import { lang } from "./lang.ts"
 const headers = new Headers({ "Content-Type": "application/json" })
 
 /** Get stream */
-export async function getStream(_: Request, session: string | undefined, index: number) {
+export async function getStream(
+  _: Request,
+  session: string | undefined,
+  index: number,
+) {
   if ((!system.public.video) && (!await isAllowedTo(session, []))) {
-    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+    return new Response(JSON.stringify({ error: lang.forbidden }), {
+      status: Status.Forbidden,
+      headers,
+    })
   }
   if (!settings.videos[index]) {
-    return new Response(JSON.stringify({ error: lang.stream_not_found }), { status: Status.NotFound, headers })
+    return new Response(JSON.stringify({ error: lang.stream_not_found }), {
+      status: Status.NotFound,
+      headers,
+    })
   }
-  const { url, port } = settings.videos[index] as unknown as { url: string; port: number }
+  const { url, port } = settings.videos[index] as unknown as {
+    url: string
+    port: number
+  }
   return fetch(`${url}:${port}`)
 }

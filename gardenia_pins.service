@@ -1,0 +1,13 @@
+[Unit]
+Description=Gardenia pins
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python python/gpio_buttons.py
+WorkingDirectory=/gardenia
+Restart=always
+
+[Install]
+WantedBy=default.target
+RequiredBy=network.target

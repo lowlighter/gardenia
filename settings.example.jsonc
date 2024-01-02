@@ -13,6 +13,13 @@
   "videos": [
     { "url": "http://0.0.0.0", "port": 4001, "picamera": true }
   ],
+  // Buttons
+  "buttons": {
+    "token": "********",
+    "list": [
+      { "pin": 10, "action": "light" }
+    ]
+  },
   // Netatmo settings (indoor station must be first)
   "netatmo_modules": [
     { "mac": "xx:xx:xx:xx:xx:xx", "type": "indoor" },

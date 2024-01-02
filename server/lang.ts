@@ -6,6 +6,7 @@ export const lang = {
   fetched_netatmo_data: "a récupéré les données de la station météo",
   refreshed_netatmo_token: "a rafrachit le token de récupération des données de la station météo",
   user_already_exists: "Cet utilisateur existe déjà",
+  user_reserved: "Ce nom d'utilisateur est réservé",
   user_does_not_exist: "Cet utilisateur n'existe pas",
   user_created: "a été crée",
   user_deleted: "a été supprimé",

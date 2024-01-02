@@ -2,7 +2,10 @@
 import { settings } from "./app.ts"
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
+const headers = new Headers({
+  "Content-Type": "application/json",
+  "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate",
+})
 
 /** Get metadata */
 export function getMeta(_: Request, __?: string) {

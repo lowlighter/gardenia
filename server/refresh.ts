@@ -3,7 +3,10 @@ import { fetchNetatmoData, refreshNetatmoToken } from "./netatmo.ts"
 import { checkActionsConditions } from "./actions.ts"
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
+const headers = new Headers({
+  "Content-Type": "application/json",
+  "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate",
+})
 
 /** Next refresh tick */
 let tick = Date.now()

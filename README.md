@@ -50,6 +50,7 @@ apt install -y python3-picamera2 --no-install-recommends
 # Install tapo100 support
 apt install python3-pip
 pip install --break-system-packages git+https://github.com/almottier/TapoP100.git@main
+pip install --break-system-packages jsonc-parser
 # Install deno
 curl -s https://gist.githubusercontent.com/LukeChannings/09d53f5c364391042186518c8598b85e/raw/ac8cd8c675b985edd4b3e16df63ffef14d1f0e24/deno_install.sh | sh
 # Clone repository
@@ -60,14 +61,17 @@ cd /gardenia
 cp settings.example.jsonc settings.jsonc
 # Create service
 cp gardenia.service /etc/systemd/system/gardenia.service
+cp gardenia_pins.service /etc/systemd/system/gardenia_pins.service
 systemctl daemon-reload
 systemctl enable gardenia
 systemctl start gardenia
+systemctl enable gardenia_pins
+systemctl start gardenia_pins
 ```
 
 You should now be able to access Gardenia web interface on the configured port in `settings.jsonc`
 
-### Installing new modules
+### Installing new weather modules
 
 It is required to configure static leases for TP-Links. Connect on the RaspAP hotspot and configure them in the `DHCP Server` section.
 

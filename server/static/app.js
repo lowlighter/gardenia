@@ -1,8 +1,14 @@
 /** Init app */
 const lang = {}
 globalThis.initApp = async function initApp(_meta, _lang) {
-  Object.assign(_lang, await fetch("/lang").then((response) => response.json()))
-  Object.assign(_meta, await fetch("/api/meta").then((response) => response.json()))
+  Object.assign(
+    _lang,
+    await fetch("/lang").then((response) => response.json()),
+  )
+  Object.assign(
+    _meta,
+    await fetch("/api/meta").then((response) => response.json()),
+  )
   Object.assign(lang, _lang)
 }
 
@@ -16,41 +22,48 @@ function updateGraphs(_data) {
     const type = graph.dataset.graph
     const { labels = [], datasets = [] } = _data.stats?.[type]?.graph ?? {}
     if (!charts[type]) {
-      charts[type] = new Chart(document.querySelector(`[data-graph="${type}"]`), {
-        type: type.endsWith("angle") ? "polarArea" : "line",
-        data: {
-          labels,
-          datasets,
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: true, position: "bottom" },
+      charts[type] = new Chart(
+        document.querySelector(`[data-graph="${type}"]`),
+        {
+          type: type.endsWith("angle") ? "polarArea" : "line",
+          data: {
+            labels,
+            datasets,
           },
-          scales: {
-            x: {
-              ticks: {
-                callback(_, i) {
-                  const t = new Date(labels[i])
-                  try {
-                    return [
-                      new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit" }).format(t),
-                      new Intl.DateTimeFormat("fr-FR", { timeStyle: "short" }).format(t),
-                    ]
-                  } catch {
-                    return ""
-                  }
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: true, position: "bottom" },
+            },
+            scales: {
+              x: {
+                ticks: {
+                  callback(_, i) {
+                    const t = new Date(labels[i])
+                    try {
+                      return [
+                        new Intl.DateTimeFormat("fr-FR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                        }).format(t),
+                        new Intl.DateTimeFormat("fr-FR", { timeStyle: "short" })
+                          .format(t),
+                      ]
+                    } catch {
+                      return ""
+                    }
+                  },
+                },
+              },
+              r: {
+                ticks: {
+                  display: false,
                 },
               },
             },
-            r: {
-              ticks: {
-                display: false,
-              },
-            },
           },
         },
-      })
+      )
     } else {
       charts[type].data.labels = labels
       charts[type].data.datasets = datasets
@@ -125,7 +138,11 @@ globalThis.createUser = function createUser(_data, _user) {
     _data,
     body: _user,
     success() {
-      Object.assign(_user, { username: "", password: "", role: { admin: false, users: false, actions: false } })
+      Object.assign(_user, {
+        username: "",
+        password: "",
+        role: { admin: false, users: false, actions: false },
+      })
       refresh(_data, { users: true, history: true })
     },
   })
@@ -174,7 +191,10 @@ globalThis.updateAction = function updateAction(_data, _action) {
 }
 
 /** Update action conditions */
-globalThis.updateActionCondition = function updateActionCondition(_data, _body) {
+globalThis.updateActionCondition = function updateActionCondition(
+  _data,
+  _body,
+) {
   return api({
     section: `conditions_${_body.target}`,
     method: "PATCH",
@@ -250,7 +270,18 @@ globalThis.logout = function logout(_data) {
 }
 
 /** Refresh data */
-function refresh(_data, { refresh = true, pictures = true, actions = true, users = true, history = true, stats = true, system = true } = {}) {
+function refresh(
+  _data,
+  {
+    refresh = true,
+    pictures = true,
+    actions = true,
+    users = true,
+    history = true,
+    stats = true,
+    system = true,
+  } = {},
+) {
   if (system) {
     getSystem(_data)
   }
@@ -275,9 +306,14 @@ function refresh(_data, { refresh = true, pictures = true, actions = true, users
 }
 
 /** API call */
-async function api({ section, method = "GET", route, body = null, _data, ...on }) {
+async function api(
+  { section, method = "GET", route, body = null, _data, ...on },
+) {
   try {
-    const { success, error, ...data } = await fetch(route, { method, body: JSON.stringify(body) }).then((response) => response.json())
+    const { success, error, ...data } = await fetch(route, {
+      method,
+      body: JSON.stringify(body),
+    }).then((response) => response.json())
     if (success) {
       if (section) {
         _data.errors[section] = ""

@@ -6,7 +6,10 @@ import { Status } from "std/http/status.ts"
 import { system } from "./system.ts"
 
 // Headers
-const headers = new Headers({ "Content-Type": "application/json", "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate" })
+const headers = new Headers({
+  "Content-Type": "application/json",
+  "Cache-Control": "max-age=0, no-cache, must-revalidate, proxy-revalidate",
+})
 
 // Specs
 const specs = {
@@ -24,7 +27,10 @@ const specs = {
 /** Get stats */
 export async function getStats(request: Request, session?: string) {
   if ((!system.public.stats) && (!await isAllowedTo(session, []))) {
-    return new Response(JSON.stringify({ error: lang.forbidden }), { status: Status.Forbidden, headers })
+    return new Response(JSON.stringify({ error: lang.forbidden }), {
+      status: Status.Forbidden,
+      headers,
+    })
   }
   let from = new Date()
   let to = new Date()
@@ -36,22 +42,53 @@ export async function getStats(request: Request, session?: string) {
     to = new Date(params.get("to")!)
   }
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-    return new Response(JSON.stringify({ error: lang.bad_dates }), { status: 400, headers })
+    return new Response(JSON.stringify({ error: lang.bad_dates }), {
+      status: 400,
+      headers,
+    })
   }
   from.setHours(0, 0, 0, 0)
   to.setHours(23, 59, 59, 999)
-  const entries = kv.list<{ [key: string]: number | null }>({ start: ["stats", from.getTime()], end: ["stats", to.getTime()] })
+  const entries = kv.list<{ [key: string]: number | null }>({
+    start: ["stats", from.getTime()],
+    end: ["stats", to.getTime()],
+  })
   const data = await Array.fromAsync(entries)
   const values = data.map(({ value }) => value)
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
   // deno-lint-ignore no-explicit-any
-  const result = { time: Date.now(), range: { timezone, from: from.toISOString(), to: to.toISOString() } } as any
+  const result = {
+    time: Date.now(),
+    range: { timezone, from: from.toISOString(), to: to.toISOString() },
+  } as any
 
-  for (const key of ["temperature", "temperature_out", "humidity", "humidity_out", "co2", "pressure", "noise", "rain", "windstrength", "windangle", "guststrength", "gustangle", "illuminance"]) {
+  for (
+    const key of [
+      "temperature",
+      "temperature_out",
+      "humidity",
+      "humidity_out",
+      "co2",
+      "pressure",
+      "noise",
+      "rain",
+      "windstrength",
+      "windangle",
+      "guststrength",
+      "gustangle",
+      "illuminance",
+    ]
+  ) {
     const previous = values.at(0)?.[key] ?? NaN
     const current = values.at(-1)?.[key] ?? NaN
-    const min = values.reduce((min, value) => Math.min(min, value[key] ?? NaN), Infinity)
-    const max = values.reduce((max, value) => Math.max(max, value[key] ?? NaN), -Infinity)
+    const min = values.reduce(
+      (min, value) => Math.min(min, value[key] ?? NaN),
+      Infinity,
+    )
+    const max = values.reduce(
+      (max, value) => Math.max(max, value[key] ?? NaN),
+      -Infinity,
+    )
     const trend = key.endsWith("angle") ? null : current > previous ? "up" : current < previous ? "down" : "stable"
     const summary = { current, min, max, trend, graph: null }
     if (!key.endsWith("angle")) {
@@ -68,7 +105,9 @@ export async function getStats(request: Request, session?: string) {
         guststrength: ["#09b43a", "#0a2517"],
         illuminance: ["#9e6a03", "#272115"],
       }[key]!
-      const entries = data.map(({ key: [_, date], value }) => [date, value[key]]).filter(([, value]) => Number.isFinite(value))
+      const entries = data.map((
+        { key: [_, date], value },
+      ) => [date, value[key]]).filter(([, value]) => Number.isFinite(value))
       const labels = entries.map(([date]) => new Date(date as string).toISOString())
       const datasets = [{
         label: (lang as { [key: string]: string })[key],
@@ -85,7 +124,13 @@ export async function getStats(request: Request, session?: string) {
           const { graph } = result.windstrength
           graph.datasets.push(...datasets)
         } else {
-          Object.assign(summary, { graph: { labels, datasets, ...(specs as { [key: string]: Record<string, unknown> })[key] } })
+          Object.assign(summary, {
+            graph: {
+              labels,
+              datasets,
+              ...(specs as { [key: string]: Record<string, unknown> })[key],
+            },
+          })
         }
       }
     } else {
@@ -104,7 +149,12 @@ export async function getStats(request: Request, session?: string) {
         const { graph } = result.windangle
         graph.datasets.push(...datasets)
       } else {
-        Object.assign(summary, { graph: { datasets, ...(specs as { [key: string]: Record<string, unknown> })[key] } })
+        Object.assign(summary, {
+          graph: {
+            datasets,
+            ...(specs as { [key: string]: Record<string, unknown> })[key],
+          },
+        })
       }
     }
     result[key] = summary

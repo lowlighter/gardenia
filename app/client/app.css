@@ -1,0 +1,85 @@
+form h2:first-child {
+  margin-top: 0;
+}
+
+.flash {
+  position: relative;
+  overflow: hidden;
+}
+
+.flash .timer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: .25rem;
+  background-color: currentColor;
+  animation: timer 5s linear 1;
+}
+
+@keyframes timer {
+  from { width: 100%; }
+  to { width: 0; }
+}
+
+.grid.graphs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr));
+  gap: 1rem;
+}
+
+article.graph {
+  margin: 0;
+  justify-content: flex-start;
+}
+
+article.graph h3 {
+  margin: 0;
+}
+
+article.graph .trend {
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+article.module.disabled {
+  opacity: .5;
+}
+
+body > header nav menu svg {
+  fill: currentColor;
+}
+
+body > header nav menu .selected svg {
+  fill: var(--accent);
+}
+
+form:first-child {
+  margin-top: 1rem;
+}
+
+table tbody tr:hover {
+  background-color: var(--bg-accent);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+table tbody tr.selected {
+  background-color: var(--bg-active);
+  color: var(--active);
+}
+
+.automation-icon {
+  width: 1.5em;
+  height: 1.5em;
+  vertical-align: middle;
+  filter: brightness(100);
+}
+
+.automation-icon.selected {
+  filter: none;
+}
+
+.automation-icon + input[type="radio"] {
+  display: none;
+}

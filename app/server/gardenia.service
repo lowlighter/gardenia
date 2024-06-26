@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStartPre=/usr/bin/git pull
+ExecStartPre=bash -c "/usr/bin/git pull || true"
 ExecStart=/root/.deno/bin/deno task run
 WorkingDirectory=/gardenia
 Restart=always

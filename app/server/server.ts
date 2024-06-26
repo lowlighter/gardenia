@@ -1,8 +1,8 @@
 // deno-lint-ignore-file no-fallthrough
 // Imports
 import { Logger } from "jsr:@libs/logger@1"
-import {serveDir, STATUS_CODE as Status, STATUS_TEXT as StatusText } from "jsr:@std/http@0.224.4"
-import { fromFileUrl } from "jsr:@std/path@0.225.2"
+import {serveDir, serveFile, STATUS_CODE as Status, STATUS_TEXT as StatusText } from "jsr:@std/http@0.224.4"
+import { fromFileUrl, resolve } from "jsr:@std/path@0.225.2"
 import type {rw, Nullable, record, Arg} from "jsr:@libs/typing@1"
 import {assertEquals} from "jsr:@std/assert@0.225.2"
 import { z as is } from "https://deno.land/x/zod@v3.21.4/mod.ts";
@@ -10,9 +10,8 @@ import { deepMerge } from "jsr:@std/collections/deep-merge"
 import * as JSONC from "jsr:@std/jsonc"
 import { Cookie, getCookies, setCookie } from "jsr:@std/http/cookie"
 import { encodeHex } from "jsr:@std/encoding/hex"
-import { expandGlob } from "jsr:@std/fs";
-import { serveFile } from "std/http/file_server.ts"
-import { resolve } from "std/path/resolve.ts"
+import { ensureDir, expandGlob } from "jsr:@std/fs";
+import {command} from "jsr:@libs/run@1"
 
 /** User. */
 type user = {
@@ -41,7 +40,7 @@ type automation_rule = {
   duration: number,
   conditions:Array<{
     data:string,
-    operator:"==" | "!=" | ">" | ">=" | "<" | "<=",
+    operator:"==" | "!=" | ">=" | "<=",
     value:number
     delta:number
   }>
@@ -58,17 +57,24 @@ class Server {
   constructor() {
     const {promise, resolve} = Promise.withResolvers<this>()
     this.ready = promise
-    this.#log = new Logger({level:9999})
+    this.#log = new Logger({level:Logger.level.debug})
     ;(async () => {
       (this as rw).#kv = await Deno.openKv(".kv");
       (this as rw).#log.info("kv-store opened");
       (this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
         .map(({path, name}) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]));
+      (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
       (this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
         .map(({name}) => name.replace(".svg", ""));
-      (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
+      (this as rw).#log.info("icons loaded ", Object.keys(this.#lang));
+      (this as rw).#public = {
+        public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
+        public_modules: await this.#get(["settings", "visibility", "public_modules"]),
+        public_data: await this.#get(["settings", "visibility", "public_data"]),
+        public_camera: await this.#get(["settings", "visibility", "public_camera"]),
+      }
+      await this.#picture_list()
       resolve(this)
-      //await this.#delete((this as rw).#log, ["status"]) //TODO to remove
     })()
   }
 
@@ -86,6 +92,12 @@ class Server {
 
   /** Icons. */
   readonly #icons = [] as string[]
+
+  /** Pictures. */
+  readonly #pictures = [] as string[]
+
+  /** Public settings. */
+  readonly #public = {} as record<string>
 
   /** Server version. */
   readonly version = "2.0.0" as const
@@ -159,6 +171,34 @@ class Server {
                 return this.#json({
                   instance_name: await this.#get(["settings", "meta", "instance_name"]),
                   version: this.version,
+                })
+              default:
+                return this.#unsupported()
+            }
+          // Public settings
+          case new URLPattern("/api/settings/visibility", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "PUT":{
+                this.#authorize(user, {grant_admin:true})
+                const {public_pictures, public_modules, public_data, public_camera} = await this.#check(request, {
+                  public_pictures:is.boolean(),
+                  public_modules:is.boolean(),
+                  public_data:is.boolean(),
+                  public_camera:is.boolean(),
+                })
+                await this.#set(log, ["settings", "visibility", "public_pictures"], public_pictures)
+                await this.#set(log, ["settings", "visibility", "public_modules"], public_modules)
+                await this.#set(log, ["settings", "visibility", "public_data"], public_data)
+                await this.#set(log, ["settings", "visibility", "public_camera"], public_camera);
+                Object.assign(this.#public, {public_pictures, public_modules, public_data, public_camera})
+              }
+              case "GET":
+                this.#authorize(user, null)
+                return this.#json({
+                  public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
+                  public_modules: await this.#get(["settings", "visibility", "public_modules"]),
+                  public_data: await this.#get(["settings", "visibility", "public_data"]),
+                  public_camera: await this.#get(["settings", "visibility", "public_camera"]),
                 })
               default:
                 return this.#unsupported()
@@ -277,16 +317,20 @@ class Server {
             switch (request.method) {
               case "POST": {
                 this.#authorize(user, {grant_admin:true})
-                const {username, password, grant_admin, grant_automation, grant_data} = await this.#check(request, {
+                let {username, password, grant_admin, grant_automation, grant_data} = await this.#check(request, {
                   username: is.string().min(1).max(64),
                   password: is.string().min(12).max(255),
                   grant_admin: is.boolean().default(false),
                   grant_automation: is.boolean().default(false),
-                  grant_data: is.boolean().default(true),
+                  grant_data: is.boolean().default(false),
                   logged: is.string().nullable(), // Read-only
                 })
                 if (await this.#get(["users", username]))
                   return this.#json({error:StatusText[Status.Conflict]}, {status: Status.Conflict})
+                if (grant_admin) {
+                  grant_automation = true
+                  grant_data = true
+                }
                 await this.#set(log, ["users", username], {username, password:await this.#hash(password), grant_admin, grant_automation, grant_data, logged:null} as user)
               }
               case "GET":{
@@ -330,6 +374,10 @@ class Server {
                   userdata.grant_admin = grant_admin ?? userdata.grant_admin
                   userdata.grant_automation = grant_automation ?? userdata.grant_automation
                   userdata.grant_data = grant_data ?? userdata.grant_data
+                  if (userdata.grant_admin) {
+                    userdata.grant_automation = true
+                    userdata.grant_data = true
+                  }
                 }
                 await this.#set(log, ["users", username], {...userdata} as user)
               }
@@ -356,9 +404,11 @@ class Server {
                 if (await this.#get(["automation", "targets", module]))
                   return this.#json({error:StatusText[Status.Conflict]}, {status: Status.Conflict})
                 await this.#set(log, ["automation", "targets", module], {name, icon, module, disabled} as automation_target)
+                if ((disabled)&&(module !== "picamera")) {
+                  await this.#tapo_state(log, await this.#get(["automation", "targets", module]) as automation_target, "off", 0)
+                }
               }
               case "GET":{
-                //TODO
                 this.#authorize(user, {})
                 return this.#json((await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)))
               }
@@ -385,9 +435,11 @@ class Server {
                     disabled: is.boolean().default(false),
                   })
                   await this.#set(log, ["automation", "targets", module], {...targetdata, name, icon, disabled} as automation_target)
+                  if ((disabled)&&(module !== "picamera")) {
+                    await this.#tapo_state(log, await this.#get(["automation", "targets", module]) as automation_target, "off", 0)
+                  }
                 }
                 case "GET":{
-                  //TODO
                   this.#authorize(user, {})
                   return this.#json(targetdata)
                 }
@@ -411,7 +463,7 @@ class Server {
                     conditions: is.array(is.object({
                       data: is.string().min(0).max(64),
                       operator: is.enum(["==", "!=", ">", ">=", "<", "<="]),
-                      value: is.union([is.string(), is.coerce.number()]),
+                      value: is.union([is.string().regex(/^\d{2}:\d{2}$/), is.coerce.number()]),
                       delta: is.coerce.number(),
                     })).min(1),
                   })
@@ -420,7 +472,6 @@ class Server {
                   await this.#set(log, ["automation", "rules", name], {name, target, priority, action, duration, conditions, hits:0, last_hit:null} as automation_rule)
                 }
                 case "GET":{
-                  //TODO
                   this.#authorize(user, {})
                   return this.#json((await Array.fromAsync(this.#kv.list({prefix:["automation", "rules"]}))).map((({value}) => value)).sort((a, b) => (b as automation_rule).priority - (a as automation_rule).priority))
                 }
@@ -451,14 +502,13 @@ class Server {
                     conditions: is.array(is.object({
                       data: is.string().min(0).max(64),
                       operator: is.enum(["==", "!=", ">", ">=", "<", "<="]),
-                      value: is.union([is.string(), is.coerce.number()]),
+                      value: is.union([is.string().regex(/^\d{2}:\d{2}$/), is.coerce.number()]),
                       delta: is.coerce.number(),
                     })).min(1),
                   })
                   await this.#set(log, ["automation", "rules", rule], {...ruledata, target, priority, action, duration, conditions} as automation_rule)
                 }
                 case "GET":{
-                  //TODO
                   this.#authorize(user, {})
                   return this.#json(ruledata)
                 }
@@ -466,69 +516,80 @@ class Server {
                   return this.#unsupported()
               }
             }
-
-
-
-
-
-
-
-
-
-
-
-
-            case new URLPattern("/api/pictures", url.origin).test(url.href.replace(url.search, "")):
-              switch (request.method) {
-                case "POST": {
-                  this.#authorize(user, null)
-
-                  const file = `${new Date().toISOString()}.png`
-                  await fetch(`${await this.#get(["settings", "camera", "url"])}`)
-                    .then(response => response.bytes())
-                    .then(async bytes => Deno.writeFile(`${await this.#get(["settings", "camera", "storage"])}/${file}`, bytes))
-                  return this.#json({file})
-
-
-                }
-                case "GET":{
-                  this.#authorize(user, null)
-                  try {
-                    return await fetch(`${await this.#get(["settings", "camera", "url"])}`)
-                  }
-                  catch {
-                    return new Response(null, {status:Status.NotFound})
-                  }
-                }
-                default:
-                  return this.#unsupported()
-              }
-
-
-          case new URLPattern("/api/overview", url.origin).test(url.href.replace(url.search, "")):
+          // Action
+          case new URLPattern("/api/action/:target", url.origin).test(url.href.replace(url.search, "")):{
+            const target = decodeURIComponent(url.pathname.split("/").at(-1) as string)
             switch (request.method) {
-              case "GET": {
-                //TODO
-                this.#authorize(user, {})
-
-                const targets = (await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)) as automation_target[]
-                const tapo = await this.#get(["settings", "tapo", "modules"]) as {name:string, mac:string}[]
-                targets.forEach(target => {
-                  const plug = tapo.find(({mac}) => target.module === mac)
-                  if (plug)
-                    Object.assign(target, {module_hint:plug.name})
+              case "POST":{
+                this.#authorize(user, {grant_automation:true})
+                const {action, duration} = await this.#check(request, {
+                  action: is.enum(["on", "off"]),
+                  duration: is.coerce.number().min(0).default(0),
                 })
-
-                return this.#json({targets})
-
-
-
+                await this.#action(log, {name:`@${user!.username}`, target, priority:NaN, action, duration, conditions:[], hits:NaN, last_hit:null})
+                return this.#json({})
               }
               default:
                 return this.#unsupported()
             }
-
-
+          }
+          // Pictures
+          case new URLPattern("/api/pictures", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "POST": {
+                this.#authorize(user, {grant_data:true})
+                const file = await this.#picture(log)
+                return this.#json({file})
+              }
+              case "GET":{
+                this.#authorize(user, "public_pictures")
+                return this.#json(this.#pictures)
+              }
+              default:
+                return this.#unsupported()
+            }
+          case new URLPattern("/api/pictures/:picture", url.origin).test(url.href.replace(url.search, "")):{
+            const picture = decodeURIComponent(url.pathname.split("/").at(-1) as string)
+            if (!/^[\d_]+$/.test(picture))
+              return this.#json({error:StatusText[Status.BadRequest]}, {status: Status.BadRequest})
+            switch (request.method) {
+              case "DELETE":{
+                this.#authorize(user, {grant_data:true})
+                const storage = await this.#get(["settings", "camera", "storage"]) as string
+                if (storage)
+                await Deno.remove(resolve(storage, picture))
+                return this.#json({})
+              }
+              case "GET":{
+                this.#authorize(user, "public_pictures")
+                const storage = await this.#get(["settings", "camera", "storage"]) as string ?? "/not_found/"
+                return serveFile(request, resolve(storage, `${picture}.png`))
+              }
+              default:
+                return this.#unsupported()
+            }
+          }
+          // Overview
+          case new URLPattern("/api/overview", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET": {
+                this.#authorize(user, "public_modules")
+                const targets = (await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)) as automation_target[]
+                const tapo = await this.#get(["settings", "tapo", "modules"]) as {name:string, mac:string}[]
+                await Promise.allSettled(targets.map(async target => {
+                  const plug = tapo.find(({mac}) => target.module === mac)
+                  if (plug)
+                    Object.assign(target, {module_hint:plug.name})
+                  Object.assign(target, {status:"unknown", status_details:null})
+                  Object.assign(target, await this.#get(["overview", target.module]))
+                  if (!user)
+                    target.module = `${target.name}_${target.module.substring(0, 2)}` // Basic censorship
+                }))
+                return this.#json({targets})
+              }
+              default:
+                return this.#unsupported()
+            }
           // Data and graphs
           case new URLPattern("/api/data", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -540,8 +601,7 @@ class Server {
                 await this.#netatmo_data(log, t)
               }
               case "GET":{
-                // TODO
-                this.#authorize(user, {})
+                this.#authorize(user, "public_data")
                 const {from, to} = await this.#check(request, {
                   from: is.coerce.date().default(() => new Date()),
                   to: is.coerce.date().default(() => new Date()),
@@ -556,8 +616,7 @@ class Server {
             switch (request.method) {
               case "GET":{
                 try {
-                  // TODO
-                  this.#authorize(user, {})
+                  this.#authorize(user, "public_camera")
                   return await fetch(`${await this.#get(["settings", "camera", "url"])}`)
                 }
                 catch {
@@ -668,12 +727,15 @@ class Server {
   // ===================================================================================================================
 
   /** Authorize user request against grants. */
-  #authorize(user:Nullable<user>, grants:Nullable<Partial<Pick<user, "grant_admin" | "grant_automation" | "grant_data">>>) {
+  #authorize(user:Nullable<user>, grants:Nullable<Partial<Pick<user, "grant_admin" | "grant_automation" | "grant_data">>> | string) {
     if (grants === null)
       return
-    if (!user)
+    if (!user) {
+      if ((typeof grants === "string")&&(this.#public[grants]))
+        return
       throw this.#json({error:StatusText[Status.Unauthorized]}, {status:Status.Unauthorized})
-    if (user.grant_admin)
+    }
+    if ((user.grant_admin)||(typeof grants === "string"))
       return
     for (const grant in grants) {
       if ((grants[grant as keyof typeof grants])&&(!user[grant as keyof typeof grants]))
@@ -1030,9 +1092,156 @@ class Server {
     log.info("tapo devices loaded")
   }
 
+  /** Set Tapo device state. */
+  async #tapo_state(log:Logger, target:automation_target, status:string, duration:number) {
+    //TODO set/ state
+    log = log.with({name:target.name, mac:target.module}).info(`set status to ${status} for ${duration} seconds`)
+    log.error("NOT IMPLEMENTED !")
+    const username = await this.#get(["settings", "tapo", "username"]) as string
+    const password = await this.#get(["settings", "tapo", "password"]) as string
+    const ip = ""
+    let action = ""
+    switch (status) {
+      case "on":
+        action = ".turnOn()"
+        if (duration > 0) {
+          action = `.turnOnWithDelay(${duration})`
+        }
+        break
+      case "off":
+        action = ".turnOff()"
+    }
+    const {stdout} = await command("python3", ["-c", [
+      "import json",
+      "import PyP100",
+      `p100 = PyP100.P100("${ip}", "${username}", "${password}")`,
+      `p100${action}`,
+      `print(json.dumps(p100.getDeviceInfo()))`,
+    ].join(";")
+    ], {throw:true})
+    console.log(JSON.parse(stdout)) //TODO: device_on
+  }
+
+  // ===================================================================================================================
+
+  /* Refresh picture lists */
+  async #picture_list() {
+    const storage = await this.#get(["settings", "camera", "storage"]) as Nullable<string> ?? "/tmp"
+    if (storage) {
+      (this as rw).#pictures = (await Array.fromAsync(expandGlob("*.png", {root:storage})))
+      .map(({name}) => name.replace(".png", ""));
+      this.#log.debug("refreshed pictures list")
+    }
+  }
+
+  /** Take a picture with Raspberry Pi camera. */
+  async #picture(log:Logger) {
+    const file = `${new Date().toISOString().replaceAll(/[^\dTZ]/g, "_").replaceAll(/[TZ]/g, "")}.png`
+    const storage = await this.#get(["settings", "camera", "storage"]) as Nullable<string> ?? "/tmp"
+    log = log.with({storage}).debug("taking picture...")
+    const bytes = await fetch(`${await this.#get(["settings", "camera", "url"])}/capture`).then(response => response.bytes()).catch(() => null)
+    await ensureDir(storage)
+    if (bytes)
+      Deno.writeFile(`${storage}/${file}`, bytes)
+    else
+      Deno.copyFile(fromFileUrl(import.meta.resolve("../client/camera_offline.png")), `${storage}/${file}`)
+    log.with({file}).info("picture taken")
+    this.#picture_list()
+    return file
+  }
+
+  /** Stream Raspberry Pi camera. */
+  #stream(port:number) {
+    //TODO: stream
+    command("python3", [fromFileUrl(import.meta.resolve("../python/video.py"))], {env:{STREAM_PORT:`${port}`}})
+  }
+
+  // ===================================================================================================================
+
+  /** Evaluate automation rules. */
+  async evaluate() {
+    const logger = this.#log
+    const [current = {}] = (await Array.fromAsync(this.#kv.list<record<Nullable<number>>>({start:["data", new Date().getTime() - 10* 30 * 60 * 1000], end:["data", new Date().getTime()]}, { limit: 1, reverse: true }))).map(({value}) => value)
+    //TODO current.time
+    logger.debug("evaluating rules...", current)
+    const rules = (await Array.fromAsync(this.#kv.list<automation_rule>({prefix:["automation", "rules"]}))).map(({value}) => value)
+    rules.sort((a, b) => b.priority - a.priority)
+    const processed = new Map<string, string>()
+    for (const rule of rules) {
+      const log = logger.with({rule:rule.name, priority:rule.priority, target:rule.target}).debug("evaluating rule...")
+      if (processed.has(rule.target)) {
+        log.debug("evaluation skipped (alreay processed)")
+        continue
+      }
+      let ok = rule.conditions.length > 0
+      for (const {data, operator, value, delta} of rule.conditions) {
+        let r = false
+        switch (operator) {
+          case "==":
+            if (data.endsWith("angle")) {
+              r = (Math.abs(current[data]! - value) <= delta)
+            }
+            else {
+              r = ((current[data]! >= value - delta) && (current[data]! <= value + delta))
+            }
+            break
+          case ">=":
+            r = (current[data]! >= value)
+            break
+          case "<=":
+            r = (current[data]! <= value)
+            break
+        }
+        if ((current[data] ?? null) !== null) {
+          log.debug(`${current[data]} ${operator} ${value} (± ${delta})`, r)
+        }
+        else {
+          log.warn(`no data available for ${data}`)
+        }
+        ok = ok && r
+      }
+      log.log("evaluated rule to", ok)
+      if (ok) {
+        rule.hits++
+        rule.last_hit = new Date().toISOString().slice(0, 16)
+        await this.#set(log, ["automation", "rules", rule.name], rule)
+        await this.#action(log, rule)
+        processed.set(rule.target, rule.name)
+      }
+    }
+  }
+
+  /** Execute automation rule action. */
+  async #action(log:Logger, rule:automation_rule) {
+    log = log.with({action:rule.action})
+    const target = await this.#get(["automation", "targets", rule.target]) as automation_target
+    if (target.disabled) {
+      log.warn("target is disabled, skipping action")
+      return
+    }
+    if (rule.action === "off")
+      rule.duration = 0
+    await this.#set(log, ["overview", rule.target], {
+      status:rule.action,
+      status_details:{
+        at: new Date().toISOString().slice(0, 16),
+        rule:rule.name,
+        duration:rule.duration,
+        t1: Date.now(),
+        t2: Date.now() + rule.duration * 1000,
+      },
+    })
+    if (rule.target !== "picamera")
+      await this.#tapo_state(log, target, rule.action, rule.duration)
+    if ((rule.target === "picamera")&&(rule.action === "on"))
+      await this.#picture(log)
+  }
+
 }
 
 if (import.meta.main) {
   const server = new Server()
   server.serve()
+  await server.ready
+  console.log(await server.evaluate())
 }

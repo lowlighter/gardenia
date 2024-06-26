@@ -1,7 +1,21 @@
+/* Matcha overrides */
+body > header nav menu svg {
+  fill: currentColor;
+}
+
+body > header nav menu .selected svg {
+  fill: var(--accent);
+}
+
+form:first-child {
+  margin-top: 1rem;
+}
+
 form h2:first-child {
   margin-top: 0;
 }
 
+/* Flash messages */
 .flash {
   position: relative;
   overflow: hidden;
@@ -21,43 +35,33 @@ form h2:first-child {
   to { width: 0; }
 }
 
-.grid.graphs {
+/* Grids */
+.grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr));
   gap: 1rem;
 }
 
-article.graph {
+article {
   margin: 0;
   justify-content: flex-start;
 }
 
-article.graph h3 {
+article h3 {
   margin: 0;
 }
 
-article.graph .trend {
+article .trend {
   width: 1em;
   height: 1em;
   vertical-align: middle;
 }
 
-article.module.disabled {
+article.disabled {
   opacity: .5;
 }
 
-body > header nav menu svg {
-  fill: currentColor;
-}
-
-body > header nav menu .selected svg {
-  fill: var(--accent);
-}
-
-form:first-child {
-  margin-top: 1rem;
-}
-
+/* Tables */
 table tbody tr:hover {
   background-color: var(--bg-accent);
   color: var(--accent);
@@ -69,6 +73,7 @@ table tbody tr.selected {
   color: var(--active);
 }
 
+/* Automation icons */
 .automation-icon {
   width: 1.5em;
   height: 1.5em;
@@ -82,4 +87,17 @@ table tbody tr.selected {
 
 .automation-icon + input[type="radio"] {
   display: none;
+}
+
+/* Camera */
+.camera {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.camera img, .camera select {
+  max-width: 720px;
 }

@@ -19,6 +19,19 @@
   "settings_meta_instance_name_desc": "Ce nom sera affiché en tant que titre de page.",
   "settings_meta_button": "Enregistrer les paramètres",
 
+  // Visibility settings
+  "settings_visibility": "Configuration de la visibilité des données",
+  "settings_visibility_desc": "Cette section permet de configurer les paramètres de visibilité des données en tant que visiteur (utilisateur non connectée).<br>Notez qu'un utilisateur non authentifié n'aura accès à l'application qu'en lecture seule et ne sera pas capable d'effectuer d'actions ou de changements.",
+  "settings_visibility_public_pictures": "Photos publiques",
+  "settings_visibility_public_pictures_desc": "Les photos prises par la caméra Raspberry Pi devraient être visibles même sans être connecté.",
+  "settings_visibility_public_camera": "Vidéo publique",
+  "settings_visibility_public_camera_desc": "La vidéo en temps réel de la caméra Raspberry Pi devrait être visible même sans être connecté.",
+  "settings_visibility_public_data": "Données météorologiques publiques",
+  "settings_visibility_public_data_desc": "Les données collectées par l'application devraient être accessibles même sans être connecté.",
+  "settings_visibility_public_modules": "Données de modules publiques",
+  "settings_visibility_public_modules_desc": "L'état des différents modules de la serre connectée devraient être accessibles même sans être connecté.",
+  "settings_visibility_button": "Enregistrer les paramètres",
+
   // Cemara settings
   "settings_camera": "Configuration de la caméra",
   "settings_camera_desc": "Cette section permet de configurer les paramètres de la caméra attachée au Raspberry Pi.",
@@ -132,6 +145,7 @@
   "graphs_to": "À",
 
   // Data
+  "data": "Données météorologiques",
   "data_range_separator": "à",
   "data_is_outdoor": "en extérieur",
   "data_temperature": "Température",
@@ -147,6 +161,7 @@
   "data_windangle": "Direction du vent",
   "data_gustangle": "Direction des rafales",
   "data_illuminance": "Éclairement lumineux",
+  "data_camera": "Caméra Raspberry Pi",
 
   // Automation targets
   "automation_target": "Cibles d'automatisation",
@@ -180,7 +195,7 @@
   "automation_rule_action_off": "Éteindre",
   "automation_rule_action_picture": "Prendre une photo",
   "automation_rule_duration": "Durée d'activation",
-  "automation_rule_duration_desc": "La durée d'activation (en nombre de secondes). La cible sera automatiquement éteinte après la durée spécifiée.",
+  "automation_rule_duration_desc": "La durée d'activation (en nombre de secondes). La cible sera automatiquement éteinte après la durée spécifiée. Si celle-ci est nulle, la cible restera allumée indéfiniment.",
   "automation_rule_conditions": "Conditions",
   "automation_rule_conditions_desc": "Cette règle se déclanchera si toutes les conditions définies ci-dessous sont remplies.",
   "automation_rule_hits": "Nombre de déclenchements",
@@ -195,13 +210,21 @@
   "automation_rule_empty": "Aucune règle d'automatisation n'est actuellement associée.",
 
   "automation_rule_operator_==": "=",
-  "automation_rule_operator_!=": "≠",
-  "automation_rule_operator_>": ">",
-  "automation_rule_operator_<": "<",
   "automation_rule_operator_>=": "≥",
   "automation_rule_operator_<=": "≤",
   "automation_rule_delta": "±",
   "automation_rule_scheduled": "Lorsqu'il est",
+
+  "automation_modules": "Modules de la serre connectée",
+  "automation_updated_by_rule": "Dernière mise à jour par",
+  "automation_updated_by_rule_at": "à",
+  "automation_updated_by_rule_for": "pour",
+  "automation_updated_by_rule_seconds": "seconde(s)",
+
+  // Manual actions
+  "manual_action_on": "Allumer manuellement",
+  "manual_action_off": "Éteindre manuellement",
+  "manual_action_unavailable": "Il n'est pas possible de contrôler manuellement cette cible d'automatisation parce que le serveur n'est pas capable de déterminer son status actuel.",
 
   // API messages
   "api_update_pending": "En attente du serveur...",
@@ -211,5 +234,8 @@
   // Generic
   "app": "Gardenia",
   "yes": "Oui",
-  "no": "Non"
+  "no": "Non",
+  "on": "Allumé",
+  "off": "Éteint",
+  "unknown": "Inconnu"
 }

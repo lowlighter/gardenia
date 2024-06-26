@@ -4,27 +4,9 @@
   const charts = {}
   const data = {
     init() {
-      this.$watch("tab", (value) => {
-        if (value === "user")
-          this.refresh_users()
-        if (value === "automation")
-          this.refresh_automation()
-        if (value === "settings")
-          this.refresh_settings()
-        if (value === "home") {
-          this.refresh_graphs(null)
-          this.refresh_overview()
-        }
-        else {
-          for (const [key, chart] of Object.entries(charts)) {
-            chart.destroy()
-            delete charts[key]
-          }
-        }
-      })
+      this.$watch("tab", (value) => this.tick(value))
       if (this.status === "configured") {
         if (document.cookie.includes("gardenia_session=")) {
-          console.debug("session restoring")
           this.api(null, "/login", {callback:data => {
             this.user = data
             this.tab = "home"
@@ -34,15 +16,19 @@
           }, method:"POST"})
         }
         else {
-          console.debug("public access")
+          if ((!this.settings.visibility.public_camera)&&(!this.settings.visibility.public_pictures)&&(!this.settings.visibility.public_data)&&(!this.settings.visibility.public_modules))
+            this.tab = "login"
+          else
           this.tab = "home"
         }
+        setInterval(() => this.tick(this.tab), 5 * 60 * 1000)
       }
       else {
-        console.debug("setup required")
         this.tab = "setup"
       }
     },
+    t:Date.now(),
+    timeout:0,
     tab:"",
     status,
     setup:{
@@ -53,6 +39,7 @@
     overview:{
       targets:[]
     },
+    pictures:[],
     graphs:{
       range:{
         from:new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().slice(0, 16),
@@ -76,6 +63,7 @@
     },
     settings:{
       meta:await fetch("/api/settings/meta").then((response) => response.json()),
+      visibility:await fetch("/api/settings/visibility").then((response) => response.json()),
       camera:{},
       netatmo:{},
       netatmo_modules:[],
@@ -84,11 +72,52 @@
     },
     lang:await fetch("/lang/fr").then((response) => response.json()),
     icons:await fetch("/icons").then((response) => response.json()),
+    /** Tick refresh. */
+    async tick(tab) {
+      clearTimeout(this.timeout)
+      this.t = Date.now()
+      switch (tab) {
+        case "user":
+          this.refresh_users()
+          break
+        case "automation":
+          this.refresh_automation()
+          break
+        case "settings":
+          this.refresh_settings()
+          break
+        case "home":
+          this.refresh_graphs(null)
+          this.refresh_overview()
+          break
+      }
+      if (this.tab === "home") {
+        for (const target of this.overview.targets) {
+          if ((target.status_details?.t2)&&(target.status_details.duration)&&(this.t >= target.status_details.t2)) {
+            await this.refresh_overview()
+          }
+        }
+      }
+      else {
+        for (const [key, chart] of Object.entries(charts)) {
+          chart.destroy()
+          delete charts[key]
+        }
+      }
+      this.timeout = setTimeout(() => this.tick(), 1000)
+    },
     /** Refresh overview. */
     async refresh_overview() {
-      if (!this.user.grant_data)
-        return
-      this.overview = await fetch("/api/overview").then((response) => response.json())
+      if (this.user.grant_data) {
+        this.overview = await fetch("/api/overview").then((response) => response.json())
+        this.pictures = await fetch("/api/pictures").then((response) => response.json())
+      }
+      else {
+        if (this.settings.visibility.public_modules)
+          this.overview = await fetch("/api/overview").then((response) => response.json())
+        if (this.settings.visibility.public_pictures)
+          this.pictures = await fetch("/api/pictures").then((response) => response.json())
+      }
     },
     /** Refresh users list. */
     async refresh_users() {
@@ -106,6 +135,7 @@
     async refresh_settings() {
       if (this.user.grant_admin) {
         this.settings.meta = await fetch("/api/settings/meta").then((response) => response.json())
+        this.settings.visibility = await fetch("/api/settings/visibility").then((response) => response.json())
         this.settings.camera = await fetch("/api/settings/camera").then((response) => response.json())
         this.settings.netatmo = await fetch("/api/settings/netatmo").then((response) => response.json())
         this.settings.netatmo_modules = await fetch("/api/settings/netatmo/modules").then((response) => response.json())
@@ -115,7 +145,7 @@
     },
     /** Refresh charts. */
     async refresh_graphs(event) {
-      if (!this.user.grant_data)
+      if ((!this.user.grant_data)&&(!this.settings.visibility.public_data))
         return
       const search = new URLSearchParams(this.graphs.range)
       const {time, data} = await this.api(event, `/api/data?${search}`, {flash:false, method:"GET"})

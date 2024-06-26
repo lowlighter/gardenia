@@ -19,7 +19,7 @@
       <h1 x-text="settings.meta.instance_name ?? lang.app"></h1>
       <nav>
         <menu>
-          <template x-if="status === 'configured'">
+          <template x-if="status === 'configured' && (user.logged || settings.visibility.public_camera || settings.visibility.public_pictures || settings.visibility.public_data || settings.visibility.public_modules)">
             <li @click="tab = 'home'" :class="{selected:tab === 'home'}">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><path d="M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z"></path></svg>
             </li>
@@ -68,76 +68,155 @@
       <!-- Home -->
       <template x-if="tab === 'home'">
         <div>
-
-          <div class="grid">
-            <template x-for="target in overview.targets">
-              <article class="module" :class="{disabled:target.disabled}">
-                <header>
-                  <small class="muted">
-                    <span x-text="target.module === 'picamera' ? lang.automation_target_module_picamera : target.module_hint"></span>
-                  </small>
-                  <h3 x-text="target.name"></h3>
-                </header>
-                <div>
-
-                </div>
-              </article>
-            </template>
-          </div>
-
-          <div>
-            <img src="/camera" alt="">
-          </div>
-          <!-- Data range -->
-          <template x-if="user.grant_data">
-            <div class="flex" x-data="{section:'graphs', endpoint:'/api/data', data:graphs.range}">
-              <template x-for="({name, disabled, required, placeholder, type}) in [{name:'from', required:true, type:'datetime-local'}, {name:'to', required:true, type:'datetime-local'}]">
-                <label :key="name" class="mr-1">
-                  <span x-html="lang[`${section}_${name}`]"></span>
-                  <input @change="await refresh_graphs(null)" x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
-                </label>
+          <!-- Camera -->
+          <template x-if="user.logged || settings.visibility.public_camera || settings.visibility.public_pictures">
+            <div class="camera" x-data="{source:'/camera'}">
+              <img :src="source" alt="">
+              <template x-if="user.logged || settings.visibility.public_pictures">
+                <select x-model="source">
+                  <template x-if="user.logged || settings.visibility.public_camera">
+                    <option value="/camera" x-text="lang.data_camera"></option>
+                  </template>
+                  <template x-if="user.logged || settings.visibility.public_pictures">
+                    <template x-for="picture in pictures">
+                      <option :key="picture" :value="`/api/pictures/${picture}`" x-text="picture"></option>
+                    </template>
+                  </template>
+                </select>
               </template>
             </div>
           </template>
-          <!-- Graphs -->
-          <div class="graphs grid">
-            <template x-for="({current, min, max, trend, unit, graph_type, graph}, key) in graphs.data">
-              <template :key="key" x-if="graph">
-                <article class="graph">
-                  <header>
-                    <small class="muted" x-html="lang[`data_${key}`]"></small>
-                    <div class="trend inline block">
-                      <template x-if="trend === 'down'">
-                        <svg class="danger" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+          <!-- Modules -->
+          <template x-if="user.logged || settings.visibility.public_modules">
+            <div>
+              <h2 x-text="lang.automation_modules"></h2>
+              <div class="modules grid">
+                <template x-for="target in overview.targets">
+                  <article :key="target.module" class="module" :class="{disabled:target.disabled}">
+                    <header>
+                      <small class="muted">
+                        <span x-text="target.module === 'picamera' ? lang.automation_target_module_picamera : target.module_hint"></span>
+                      </small>
+                      <h3 x-text="target.name"></h3>
+                    </header>
+                    <div>
+                      <template x-if="target.status === 'on'">
+                        <div class="rounded px-.5 bg-success success" x-text="lang.on"></div>
                       </template>
-                      <template x-if="trend === 'up'">
-                        <svg class="success" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                      <template x-if="target.status === 'off'">
+                        <div class="rounded px-.5 bg-danger danger" x-text="lang.off"></div>
+                      </template>
+                      <template x-if="target.status === 'unknown'">
+                        <div class="rounded px-.5 bg-muted muted" x-text="lang.unknown"></div>
+                      </template>
+                      <template x-if="target.status_details">
+                        <div>
+                          <template x-if="target.status_details.duration">
+                            <progress class="success" :max="target.status_details.t2 - target.status_details.t1" :value="t - target.status_details.t1"></progress>
+                          </template>
+                          <span x-text="lang.automation_updated_by_rule"></span>
+                          <var x-text="target.status_details.rule"></var>
+                          <span x-text="lang.automation_updated_by_rule_at"></span>
+                          <var x-text="target.status_details.at"></var>
+                          <template x-if="target.status_details.duration">
+                            <div>
+                              <span x-text="lang.automation_updated_by_rule_for"></span>
+                              <var x-text="target.status_details.duration"></var>
+                              <span x-text="lang.automation_updated_by_rule_seconds"></span>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                      <!-- Manual handling -->
+                      <template x-if="user.grant_automation">
+                        <div>
+                          <template x-if="target.status !== 'unknown'">
+                            <form class="mt-.5" x-data="{data:{duration:0}}">
+                              <template x-if="target.status === 'off'">
+                                <label>
+                                  <span x-html="lang.automation_rule_duration"></span><br>
+                                  <small x-html="lang.automation_rule_duration_desc"></small>
+                                  <input x-model="data.duration" type="number" required>
+                                </label>
+                              </template>
+                              <footer>
+                                <template x-if="target.status === 'off'">
+                                  <button class="success" @click="await api($event, `/api/action/${encodeURIComponent(target.module)}`, {callback:() => refresh_overview(), method:'POST', body:JSON.stringify({action:'on', ...data})})" type="submit" x-text="lang.manual_action_on"></button>
+                                </template>
+                                <template x-if="target.status === 'on'">
+                                  <button class="danger" @click="await api($event, `/api/action/${encodeURIComponent(target.module)}`, {callback:() => refresh_overview(), method:'POST', body:JSON.stringify({action:'off', ...data})})" type="submit" x-text="lang.manual_action_off"></button>
+                                </template>
+                              </footer>
+                            </form>
+                          </template>
+                          <template x-if="target.status === 'unknown'">
+                            <form class="mt-.5" x-data="{data:{duration:0}}">
+                              <small class="muted" x-text="lang.manual_action_unavailable"></small>
+                            </form>
+                          </template>
+                        </div>
+
                       </template>
                     </div>
-                    <h3>
-                      <span x-text="`${current ?? '-'} ${unit}`"></span>
-                      <template x-if="graphs.data[`${key}_out`]">
-                        <small class="muted">
-                          (<span x-text="`${graphs.data[`${key}_out`].current ?? '-'} ${unit}`"></span> <span x-text="lang.data_is_outdoor"></span>)
+                  </article>
+                </template>
+              </div>
+            </div>
+          </template>
+          <!-- Data -->
+          <template x-if="user.grant_data || settings.visibility.public_data">
+            <div>
+              <h2 x-text="lang.data"></h2>
+              <!-- Data range -->
+              <div class="mt-1 flex" x-data="{section:'graphs', endpoint:'/api/data', data:graphs.range}">
+                <template x-for="({name, disabled, required, placeholder, type}) in [{name:'from', required:true, type:'datetime-local'}, {name:'to', required:true, type:'datetime-local'}]">
+                  <label :key="name" class="mr-1">
+                    <span x-html="lang[`${section}_${name}`]"></span>
+                    <input @change="await refresh_graphs(null)" x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
+                  </label>
+                </template>
+              </div>
+              <!-- Graphs -->
+              <div class="graphs grid">
+                <template x-for="({current, min, max, trend, unit, graph_type, graph}, key) in graphs.data">
+                  <template :key="key" x-if="graph">
+                    <article class="graph">
+                      <header>
+                        <small class="muted" x-html="lang[`data_${key}`]"></small>
+                        <div class="trend inline block">
+                          <template x-if="trend === 'down'">
+                            <svg class="danger" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+                          </template>
+                          <template x-if="trend === 'up'">
+                            <svg class="success" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                          </template>
+                        </div>
+                        <h3>
+                          <span x-text="`${current ?? '-'} ${unit}`"></span>
+                          <template x-if="graphs.data[`${key}_out`]">
+                            <small class="muted">
+                              (<span x-text="`${graphs.data[`${key}_out`].current ?? '-'} ${unit}`"></span> <span x-text="lang.data_is_outdoor"></span>)
+                            </small>
+                          </template>
+                        </h3>
+                        <small>
+                          <span x-text="min ?? '-'"></span> <span x-text="lang.data_range_separator"></span> <span x-text="`${max ?? '-'} ${unit}`"></span>
                         </small>
-                      </template>
-                    </h3>
-                    <small>
-                      <span x-text="min ?? '-'"></span> <span x-text="lang.data_range_separator"></span> <span x-text="`${max ?? '-'} ${unit}`"></span>
-                    </small>
-                    <template x-if="graphs.data[`${key}_out`]">
-                      <small class="muted">
-                        (<span x-text="graphs.data[`${key}_out`].min ?? '-'"></span> <span x-text="lang.data_range_separator"></span> <span x-text="`${graphs.data[`${key}_out`].max ?? '-'} ${unit}`"></span> <span x-text="lang.data_is_outdoor"></span>)
-                      </small>
-                    </template>
-                  </header>
-                  <div :style="{maxHeight: `${graph_type === 'polarArea' ? 200 : 300}px`}">
-                    <canvas :style="{margin: graph_type === 'polarArea' ? 'auto' : ''}" :data-graph="key"></canvas>
-                  </div>
-                </article>
-              </template>
-            </template>
-          </div>
+                        <template x-if="graphs.data[`${key}_out`]">
+                          <small class="muted">
+                            (<span x-text="graphs.data[`${key}_out`].min ?? '-'"></span> <span x-text="lang.data_range_separator"></span> <span x-text="`${graphs.data[`${key}_out`].max ?? '-'} ${unit}`"></span> <span x-text="lang.data_is_outdoor"></span>)
+                          </small>
+                        </template>
+                      </header>
+                      <div :style="{maxHeight: `${graph_type === 'polarArea' ? 200 : 300}px`}">
+                        <canvas :style="{margin: graph_type === 'polarArea' ? 'auto' : ''}" :data-graph="key"></canvas>
+                      </div>
+                    </article>
+                  </template>
+                </template>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -163,7 +242,7 @@
 
       <!-- User -->
       <template x-if="tab === 'user'">
-        <section x-data="{data:user, method:'PUT', endpoint:`/api/users/${user.username}`, grant_admin:user.grant_admin, form_visible:true}">
+        <section x-data="{data:user, method:'PUT', endpoint:`/api/users/${encodeURIComponent(user.username)}`, grant_admin:user.grant_admin, form_visible:true}">
           <!-- User list -->
           <template x-if="user.grant_admin">
             <table class="mt-1">
@@ -178,7 +257,7 @@
               </thead>
               <tbody>
                 <template x-for="user in users">
-                  <tr :class="{selected:user.username === data.username}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/users/${user.username}`; data = user">
+                  <tr :key="user.username" :class="{selected:user.username === data.username}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/users/${encodeURIComponent(user.username)}`; data = user">
                     <td x-text="user.username"></td>
                     <td x-text="user.logged ? user.logged : lang.user_logged_never"></td>
                     <td x-text="user.grant_admin ? lang.yes : lang.no"></td>
@@ -202,8 +281,8 @@
               <h2 x-html="lang[section]"></h2>
               <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
               <template x-for="({name, disabled, required, placeholder, type}) in [{name:'username', disabled:method !== 'POST'}, {name:'logged', disabled:true, type:'datetime-local'}, {name:'password', required:true, type:'password'}, {name:'grant_admin', type:'checkbox', disabled:!grant_admin}, {name:'grant_automation', type:'checkbox', disabled:!grant_admin}, {name:'grant_data', type:'checkbox', disabled:!grant_admin}]">
-                <template x-if="!(((name === 'logged')&&(method === 'POST'))||((name === 'grant_automation')&&(data.grant_admin))||((name === 'grant_data')&&(data.grant_admin)))">
-                  <label :key="name">
+                <template :key="name" x-if="!(((name === 'logged')&&(method === 'POST'))||((name === 'grant_automation')&&(data.grant_admin))||((name === 'grant_data')&&(data.grant_admin)))">
+                  <label>
                     <span x-html="lang[`${section}_${name}`]"></span><br>
                     <small x-html="lang[`${section}_${name}_desc`]"></small>
                     <template x-if="type === 'checkbox'">
@@ -243,7 +322,7 @@
               </thead>
               <tbody>
                 <template x-for="target in automation.targets">
-                  <tr :class="{selected:target.module === data.module}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/targets/${target.module}`; data = target">
+                  <tr :key="target.module" :class="{selected:target.module === data.module}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/targets/${encodeURIComponent(target.module)}`; data = target">
                     <td><img class="automation-icon" :src="`/svg/${target.icon}.svg`" alt=""></td>
                     <td x-text="target.name"></td>
                     <td x-text="target.module"></td>
@@ -274,7 +353,7 @@
                   <small class="muted" x-html="lang.automation_target_icon_desc"></small>
                   <div class="flex">
                     <template x-for="icon in icons">
-                      <label class="mr-1">
+                      <label :key="icon" class="mr-1">
                         <img class="automation-icon" :class="{selected:data.icon === icon}" :src="`/svg/${icon}.svg`" alt="">
                         <input x-model="data.icon" type="radio" :value="icon">
                       </label>
@@ -292,7 +371,7 @@
                   <select x-model="data.module" required>
                     <option value=""></option>
                     <template x-for="module in settings.tapo_modules">
-                      <option :value="module.mac" x-text="`${module.name} (${module.mac})`" :selected="data.module === module.mac"></option>
+                      <option :key="module.mac" :value="module.mac" x-text="`${module.name} (${module.mac})`" :selected="data.module === module.mac"></option>
                     </template>
                     <option value="picamera" x-text="lang.automation_target_module_picamera" :selected="data.module === 'picamera'"></option>
                   </select>
@@ -329,7 +408,7 @@
               </thead>
               <tbody>
                 <template x-for="rule in automation.rules">
-                  <tr :class="{selected:rule.name === data.name}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/rules/${rule.name}`; data = rule">
+                  <tr :key="rule.name" :class="{selected:rule.name === data.name}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`; data = rule">
                     <td><img class="automation-icon" :src="`/svg/${Object.values(automation.targets).find(target => target.module === rule.target)?.icon}.svg`" alt=""></td>
                     <td x-text="rule.priority"></td>
                     <td x-text="rule.name"></td>
@@ -358,8 +437,8 @@
               <!-- Automation rule form -->
               <form x-data="{section:'automation_rule'}">
                 <template x-for="({name, disabled, required, placeholder, type}) in [{name:'name', required:true}, {name:'hits', type:'number', disabled:true}, {name:'last_hit', type:'datetime-local', disabled:true}, {name:'priority', type:'number'}]">
-                  <template x-if="!((method === 'POST')&&((name === 'hits')||(name === 'last_hit')))">
-                    <label :key="name">
+                  <template :key="name" x-if="!((method === 'POST')&&((name === 'hits')||(name === 'last_hit')))">
+                    <label>
                       <span x-html="lang[`${section}_${name}`]"></span><br>
                       <small x-html="lang[`${section}_${name}_desc`]"></small>
                       <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
@@ -372,7 +451,7 @@
                   <select x-model="data.target" required>
                     <option value=""></option>
                     <template x-for="target in automation.targets">
-                      <option :value="target.module" x-text="target.name" :selected="data.target === target.module"></option>
+                      <option :key="target.module" :value="target.module" x-text="target.name" :selected="data.target === target.module"></option>
                     </template>
                   </select>
                 </label>
@@ -402,16 +481,16 @@
                   <span x-html="lang.automation_rule_conditions"></span><br>
                   <small x-html="lang.automation_rule_conditions_desc" class="muted"></small><br>
                   <template x-for="(condition, i) in data.conditions">
-                    <div class="flex align-center">
+                    <div :key="`${i}+${condition.data}+${condition.operator}`" class="flex align-center">
                       <select x-model="condition.data" class="mr-.5">
                         <option value="time" x-text="lang.automation_rule_scheduled"></option>
                         <template x-for="key in ['temperature', 'temperature_out', 'humidity', 'humidity_out', 'co2', 'pressure', 'noise', 'rain', 'windstrength', 'guststrength', 'windangle', 'gustangle', 'illuminance']">
-                          <option :value="key" x-text="lang[`data_${key}`]"></option>
+                          <option :key="key" :value="key" x-text="lang[`data_${key}`]"></option>
                         </template>
                       </select>
                       <select x-model="condition.operator" class="mr-.5">
-                        <template x-for="operator in ['==', '!=', '>', '>=', '<', '<=']">
-                          <option :value="operator" x-text="lang[`automation_rule_operator_${operator}`]"></option>
+                        <template x-for="operator in (condition.data.endsWith('angle') ? ['=='] : ['==', '>=', '<='])">
+                          <option :key="operator" :value="operator" x-text="lang[`automation_rule_operator_${operator}`]"></option>
                         </template>
                       </select>
                       <template x-if="condition.data === 'time'">
@@ -420,13 +499,13 @@
                       <template x-if="condition.data !== 'time'">
                         <input x-model="condition.value" type="number" class="mr-.5">
                       </template>
-                      <template x-if="condition.data !== 'time'">
+                      <template x-if="(condition.data !== 'time')&&(condition.operator === '==')">
                         <span x-text="lang.automation_rule_delta"></span>
                       </template>
-                      <template x-if="condition.data !== 'time'">
+                      <template x-if="(condition.data !== 'time')&&(condition.operator === '==')">
                         <input x-model="condition.delta" type="number" step="0.1" class="mx-.5">
                       </template>
-                      <button @click.prevent="data.conditions.splice(i, 1)" class="danger">X</button>
+                      <button @click.prevent="data.conditions.splice(i, 1)" class="danger">-</button>
                     </div>
                   </template>
                   <button @click.prevent="data.conditions.push({data:'time', 'operator':'==', value:0, delta:0})" x-text="lang.automation_rule_button_add_condition"></button>
@@ -454,6 +533,24 @@
               <label :key="name">
                 <span x-html="lang[`${section}_${name}`]"></span><br>
                 <small x-html="lang[`${section}_${name}_desc`]"></small>
+                <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
+              </label>
+            </template>
+            <footer>
+              <button type="submit" @click="Object.assign(data, await api($event, endpoint, {method:'PUT', body:JSON.stringify(data)}))" x-text="lang[`${section}_button`]"></button>
+            </footer>
+          </form>
+          <!-- Visibility -->
+          <form x-data="{section:'settings_visibility', endpoint:'/api/settings/visibility', data:settings.visibility}">
+            <h2 x-html="lang[section]"></h2>
+            <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'public_pictures', type:'checkbox'}, {name:'public_camera', type:'checkbox'}, {name:'public_data', type:'checkbox'}, {name:'public_modules', type:'checkbox'}]">
+              <label :key="name">
+                <span x-html="lang[`${section}_${name}`]"></span><br>
+                <small x-html="lang[`${section}_${name}_desc`]"></small>
+                <template x-if="type === 'checkbox'">
+                  <br>
+                </template>
                 <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
               </label>
             </template>

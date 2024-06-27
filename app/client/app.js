@@ -66,6 +66,7 @@
       meta:await fetch("/api/settings/meta").then((response) => response.json()),
       visibility:await fetch("/api/settings/visibility").then((response) => response.json()),
       tickrate:{},
+      control:{},
       camera:{},
       netatmo:{},
       netatmo_modules:[],
@@ -139,6 +140,7 @@
         this.settings.meta = await fetch("/api/settings/meta").then((response) => response.json())
         this.settings.visibility = await fetch("/api/settings/visibility").then((response) => response.json())
         this.settings.tickrate = await fetch("/api/settings/tickrate").then((response) => response.json())
+        this.settings.control = await fetch("/api/settings/control").then((response) => response.json())
         this.settings.camera = await fetch("/api/settings/camera").then((response) => response.json())
         this.settings.netatmo = await fetch("/api/settings/netatmo").then((response) => response.json())
         this.settings.netatmo_modules = await fetch("/api/settings/netatmo/modules").then((response) => response.json())

@@ -51,10 +51,10 @@ type automation_rule = {
 /**
  * Gardenia server.
  */
-class Server {
+export class Server {
 
   /** Constructor */
-  constructor({ports = {server:8080, picamera:8081}, mode = "app" as "all" | "app" | "ctl"} = {}) {
+  constructor({ports, mode}:{ports:{server:number, picamera:number}, mode:"all" | "app" | "ctl"}) {
     const {promise, resolve} = Promise.withResolvers<this>()
     this.ready = promise
     this.#log = new Logger({level:Logger.level.debug})
@@ -63,10 +63,10 @@ class Server {
       (this as rw).#kv = await Deno.openKv(".kv");
       (this as rw).#log.info("kv-store opened");
       (this as rw).#log.info("mode", this.mode);
+      (this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
+        .map(({path, name}) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]));
+      (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
       if ((this.mode === "all")||(this.mode === "app")) {
-        (this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
-          .map(({path, name}) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]));
-        (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
         (this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
           .map(({name}) => name.replace(".svg", ""));
         (this as rw).#log.info("icons loaded ", Object.keys(this.#lang));
@@ -78,11 +78,13 @@ class Server {
           public_history: await this.#get(["settings", "visibility", "public_history"]),
         }
         await this.#picture_list()
-        await this.#tick()
-        this.#serve(ports.server)
       }
       if ((this.mode === "all")||(this.mode === "ctl")) {
         this.#stream(ports.picamera)
+      }
+      await this.#serve(ports.server)
+      if ((this.mode === "all")||(this.mode === "app")) {
+        await this.#tick()
       }
       resolve(this)
     })()
@@ -119,8 +121,8 @@ class Server {
 
   /** Serve HTTP requests. */
   async #serve(port:number) {
-    await this.ready
-    Deno.serve({port, onListen:({hostname, port}) => this.#log.info(`server listening on ${hostname}:${port}`)}, async request => {
+    const {promise, resolve:ready} = Promise.withResolvers<void>()
+    Deno.serve({port, onListen:({hostname, port}) => (this.#log.info(`server listening on ${hostname}:${port}`), ready())}, async request => {
       const url = new URL(request.url)
       const { gardenia_session: session } = getCookies(request.headers)
       let log = this.#log.with({session:session?.slice(0, 8) ?? null, method:request.method, url:url.pathname}).debug("processing request")
@@ -158,6 +160,55 @@ class Server {
                 return this.#unsupported()
             }
           }
+        }
+        if (this.mode === "ctl") {
+          switch (true) {
+            // Token
+            case new URLPattern("/token", url.origin).test(url.href.replace(url.search, "")):
+              switch (request.method) {
+                case "POST":
+                  await this.#set(log, ["settings", "control", "token"], crypto.randomUUID())
+                case "GET":{
+                  let token = await this.#get(["settings", "control", "token"])
+                  if (!token) {
+                    token = crypto.randomUUID()
+                    await this.#set(log, ["settings", "control", "token"], token)
+                  }
+                  return this.#json({token})
+                }
+                default:
+                  return this.#unsupported()
+              }
+            // Tapo state
+            case new URLPattern("/.api/tapo_state", url.origin).test(url.href.replace(url.search, "")): {
+              switch (request.method) {
+                case "POST": {
+                  const {token, args:{target, status, duration, credentials}} = await this.#check(request, {token: is.string(), args: is.any()})
+                  if (await this.#get(["settings", "control", "token"]) !== token)
+                    return this.#json({error:Status.Forbidden}, {status:Status.Forbidden})
+                  return this.#json(await this.#tapo_state(log, target, status, duration, credentials))
+                }
+                default:
+                  return this.#unsupported()
+              }
+            }
+            // Index
+            case new URLPattern("/{index.html}?", url.origin).test(url.href.replace(url.search, "")):
+              switch (request.method) {
+                case "GET":
+                  return serveFile(request, fromFileUrl(import.meta.resolve("../client/index.ctl.html")))
+                default:
+                  return this.#unsupported()
+              }
+            // Static files
+            default:
+              return serveDir(request, {
+                fsRoot: fromFileUrl(new URL(import.meta.resolve("../client"))),
+                quiet: true,
+              })
+          }
+        }
+        switch (true) {
           // Icons
           case new URLPattern("/icons", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -767,6 +818,7 @@ class Server {
         return this.#json({error: error.message}, {status: Status.InternalServerError})
       }
     })
+    await promise
   }
 
   // ===================================================================================================================
@@ -787,7 +839,7 @@ class Server {
         await this.#netatmo_data(log)
         await this.#evaluate(log)
         const targets = (await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)) as automation_target[]
-        await Promise.all(targets.map(target => this.#tapo_state(log, target).catch(() => null)))
+        await Promise.all(targets.filter(target => target.module !== "picamera").map(target => this.#tapo_state(log, target).catch(reason => log.warn(`failed to update ${target.module}`, reason))))
         break
       }
       catch (error) {
@@ -1220,8 +1272,9 @@ class Server {
         const url = await this.#get(["settings", "control", "url"]) as string
         const token = await this.#get(["settings", "control", "token"]) as string
         log = log.with({url}).debug("forwarding call")
-        const result = await fetch(`${url}`, {body:JSON.stringify({token, args:{target, status, duration, credentials}})}).then(response => response.json())
-        log.debug(result)
+        const response = await fetch(`${url}/.api/tapo_state`, {method:"POST", body:JSON.stringify({token, args:{target, status, duration, credentials}})})
+        const result = await response.json()
+        log.with({status:response.status}).debug(result)
         /*
           //TODO(@lowlighter): store state
           const overview = await this.#get(["overview", target.module])
@@ -1426,8 +1479,4 @@ class Server {
 
   //async #history_push(log:Logger, user:Nullable<Pick<user, "username">>, action:string, details?:record<unknown>) {
 
-}
-
-if (import.meta.main) {
-  await new Server().ready
 }

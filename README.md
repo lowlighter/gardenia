@@ -72,7 +72,5 @@ systemctl start gardenia
 ==========================
 
 todo:
-- autorefresh rate/setting (evaluate rules + fetch netatmo data + sync status with tapo modules)
-- backend mode (run:pi)
-- implement time based rules (delta based on tickrate)
 - history tab and record (store actions)
+- second vpn

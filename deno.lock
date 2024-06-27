@@ -15,6 +15,7 @@
       "jsr:@std/async@^0.224.2": "jsr:@std/async@0.224.2",
       "jsr:@std/bytes@^0.224.0": "jsr:@std/bytes@0.224.0",
       "jsr:@std/bytes@^1.0.0-rc.3": "jsr:@std/bytes@1.0.0-rc.3",
+      "jsr:@std/cli": "jsr:@std/cli@0.224.6",
       "jsr:@std/cli@^0.224.3": "jsr:@std/cli@0.224.4",
       "jsr:@std/cli@^0.224.6": "jsr:@std/cli@0.224.6",
       "jsr:@std/collections": "jsr:@std/collections@0.224.2",

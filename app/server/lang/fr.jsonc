@@ -269,5 +269,11 @@
   "on": "Allumé",
   "off": "Éteint",
   "unknown": "Inconnu",
-  "utc_time": "Heure UTC"
+  "utc_time": "Heure UTC",
+
+  // Control
+  "mode_control": "<p>L'application est actuellement en mode <code>ctl</code>.</p><p>Ce mode est destiné à être utilisé en tandem avec une application en mode <code>app</code> avec le jeton d'authentification ci-dessous.</p>",
+  "mode_control_token": "Jeton d'authentification du serveur de contrôle",
+  "mode_control_token_desc": "Le jeton d'authentification du serveur de contrôle. Celui-ci doit être fourni à chaque requête afin d'autoriser les changements de modules.",
+  "mode_control_token_button": "Générer un nouveau jeton d'authentification"
 }

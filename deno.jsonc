@@ -2,25 +2,22 @@
   "repository": "https://github.com/lowlighter/gardenia",
   "version": "0.1.0",
   "tasks": {
-    "run": "deno run --allow-read --allow-write=. --allow-run=arp --allow-net app/server/server.ts",
-    "dev": "deno run --allow-read --allow-write=. --allow-run=arp --allow-net --watch app/server/server.ts"
-  },
-  "imports": {
-    "std/": "https://deno.land/std@0.205.0/"
+    "run:app": "deno run --allow-read --allow-write=.kv --allow-net app/mod.ts --mode app --ports.server 8080",
+    "run:ctl": "deno run --allow-read --allow-write=.kv --allow-run=arp,python --allow-net=localhost,0.0.0.0 app/mod.ts --mode ctl --ports.server 12000 --ports.picamera 12001"
   },
   "unstable": [
     "kv"
   ],
   "lint": {
     "exclude": [
-      "server/static/js"
+      "app/client/js"
     ]
   },
   "fmt": {
     "lineWidth": 200,
     "semiColons": false,
     "exclude": [
-      "server/static/js"
+      "app/client/js"
     ]
   }
 }

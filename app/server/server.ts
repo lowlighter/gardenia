@@ -1487,14 +1487,14 @@ export class Server {
         let action = ""
         switch (status) {
           case "on":
-            action = ".turnOn()"
+            action = "p100.turnOn()"
             duration ??= 0
             if (duration > 0) {
-              action = `.turnOnWithDelay(${duration})`
+              action += `;p100.turnOffWithDelay(${duration})`
             }
             break
           case "off":
-            action = ".turnOff()"
+            action = "p100.turnOff()"
         }
         // Resolve IP address
         const { stdout: arp } = await command("arp", ["--numeric"], { log, throw: true })
@@ -1509,9 +1509,9 @@ export class Server {
           "-c",
           [
             "import json",
-            "import PyP100",
+            "from PyP100 import PyP100",
             `p100 = PyP100.P100("${ip}", "${credentials.username}", "${credentials.password}")`,
-            `p100${action}`,
+            `${action}`,
             `print(json.dumps(p100.getDeviceInfo()))`,
           ].join(";"),
         ], { log, throw: true })

@@ -1,0 +1,14 @@
+[Unit]
+Description=Gardenia (ctl)
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=bash -c "/usr/bin/git pull || true"
+ExecStart=/root/.deno/bin/deno task run:ctl
+WorkingDirectory=/gardenia
+Restart=always
+
+[Install]
+WantedBy=default.target
+RequiredBy=network.target

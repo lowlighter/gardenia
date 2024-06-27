@@ -1,11 +1,11 @@
 [Unit]
-Description=Gardenia
+Description=Gardenia (app)
 After=network.target
 
 [Service]
 Type=simple
 ExecStartPre=bash -c "/usr/bin/git pull || true"
-ExecStart=/root/.deno/bin/deno task run
+ExecStart=/root/.deno/bin/deno task run:app
 WorkingDirectory=/gardenia
 Restart=always
 

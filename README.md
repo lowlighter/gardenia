@@ -59,13 +59,12 @@ nmcli connection down Hotspot
 nmcli connection modify Hotspot ipv4.addresses 192.168.200.1/24
 nmcli connection up Hotspot
 
-# Install gardenia
+# Install gardenia services
 mkdir /gardenia
 git clone https://github.com/lowlighter/gardenia.git /gardenia
-cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia.service
+cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia_app.service
+cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia_ctl.service
 systemctl daemon-reload
-systemctl enable gardenia
-systemctl start gardenia
 ```
 
 ==========================

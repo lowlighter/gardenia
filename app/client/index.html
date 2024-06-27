@@ -128,7 +128,7 @@
                       <template x-if="target.status_details">
                         <p>
                           <small class="muted">
-                            <template x-if="target.status_details.duration">
+                            <template x-if="(target.status === 'on')&&(target.status_details.duration)">
                               <progress class="success" :max="target.status_details.t2 - target.status_details.t1" :value="t - target.status_details.t1"></progress>
                             </template>
                             <span x-text="lang.automation_updated_by_rule"></span>

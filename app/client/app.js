@@ -100,12 +100,13 @@
         case "home":
           this.refresh_graphs(null)
           this.refresh_overview()
+          this.refresh_pictures()
           this.refresh_history()
           break
       }
       if (this.tab === "home") {
         for (const target of this.overview.targets) {
-          if ((target.status_details?.t2) && (target.status_details.duration) && (this.t >= target.status_details.t2)) {
+          if ((target.status === "on") && (target.status_details?.duration) && (target.status_details?.t2) && (this.t >= target.status_details.t2)) {
             await this.refresh_overview()
           }
         }
@@ -125,16 +126,14 @@
     },
     /** Refresh overview. */
     async refresh_overview() {
-      if (this.user.grant_data) {
+      if ((this.user.grant_data) || (this.settings.visibility.public_modules)) {
         this.overview = await fetch("/api/overview").then((response) => response.json())
+      }
+    },
+    /** Refresh pictures. */
+    async refresh_pictures() {
+      if ((this.user.grant_data) || (this.settings.visibility.public_pictures)) {
         this.pictures = await fetch("/api/pictures").then((response) => response.json())
-      } else {
-        if (this.settings.visibility.public_modules) {
-          this.overview = await fetch("/api/overview").then((response) => response.json())
-        }
-        if (this.settings.visibility.public_pictures) {
-          this.pictures = await fetch("/api/pictures").then((response) => response.json())
-        }
       }
     },
     /** Refresh history. */

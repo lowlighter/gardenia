@@ -1008,8 +1008,7 @@ export class Server {
       }
     }
     await this.#evaluate(log).catch((error) => log.error(error))
-    const targets = (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value) as automation_target[]
-    await Promise.all(targets.filter((target) => target.module !== "picamera").map((target) => this.#tapo_state(log, target).catch((error) => log.warn(`failed to update ${target.module}`, error))))
+    await this.#tapo_sync(log)
     await this.#set(this.#log, ["settings", "tickrate", "last_tick"], tick)
     if (!await this.#get(["settings", "tickrate", "tickrate"])) {
       log.warn("setting default tickrate as it was not set before")
@@ -1467,13 +1466,18 @@ export class Server {
         log = log.with({ url }).debug("forwarding call")
         const response = await fetch(`${url}/.api/tapo_state`, { method: "POST", body: JSON.stringify({ token, args: { target, status, duration, credentials } }) })
         const result = await response.json()
-        log.with({ status: response.status }).debug(result)
-        /*
-          //TODO(@lowlighter): store state
-          const overview = await this.#get(["overview", target.module])
-          if (overview)
-            await this.#set(log, ["overview", target.module], {...overview, status:result.device_on})
-        */
+        log.with({ status: response.status }).debug()
+        const overview = await this.#get(["overview", target.module]) as record ?? { status: "unknown", status_details: null }
+        if (typeof result.device_on === "boolean") {
+          Object.assign(overview, { status: result.device_on ? "on" : "off" })
+          log.debug("device status is", overview.status)
+        }
+        if (duration) {
+          const dt = duration + 5
+          log.debug(`scheduling sync in ${dt}s`)
+          setTimeout(() => this.#tapo_sync(log, [target]), dt * 1000)
+        }
+        await this.#set(log, ["overview", target.module], overview)
         return
       }
       case "all":
@@ -1519,6 +1523,16 @@ export class Server {
         return state
       }
     }
+  }
+
+  /** Synchronize tapo devices state. */
+  async #tapo_sync(log: Logger, targets = [] as automation_target[]) {
+    if (!targets.length) {
+      targets.push(...(await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value) as automation_target[])
+      targets = targets.filter((target) => target.module !== "picamera")
+    }
+    log.with({ targets: targets.map((target) => target.module) }).debug("syncing")
+    await Promise.all(targets.map((target) => this.#tapo_state(log, target).catch((error) => log.warn(`failed to update ${target.module}`, error))))
   }
 
   // ===================================================================================================================
@@ -1670,10 +1684,6 @@ export class Server {
     if ((rule.target === "picamera") && (rule.action === "on")) {
       await this.#history_push(log, null, "action_picture", { public: true, rule: rule.name, target: target.name })
       await this.#picture(log)
-    }
-    if (rule.duration) {
-      log.debug(`scheduling tick in ${(rule.duration + 5)} seconds`)
-      setTimeout(() => this.#tick(), (rule.duration + 5) * 1000)
     }
   }
 

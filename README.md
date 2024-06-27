@@ -1,7 +1,7 @@
 # 🌻 Gardenia
 
-Gardenia is a greenhouse automation system designed to run on a Raspberry Pi.
-It collects data from various sensors and modules, and can automate actions such as watering, heating and taking pictures based on conditions.
+Gardenia is a greenhouse automation system designed to run on a Raspberry Pi. It collects data from various sensors and modules, and can automate actions such as watering, heating and taking pictures
+based on conditions.
 
 This project was done as a volunteer for a high school in France.
 
@@ -13,8 +13,7 @@ This project is designed to run on a Raspberry Pi with:
 - [Netatmo weather station](https://dev.netatmo.com/apidocumentation) and its modules
 - [TP-link Tapo P100](https://www.tp-link.com/fr/home-networking/smart-plug/tapo-p100)
 
-A TP-link Tapo account and a Netatmo account are required to use this project.
-An additional Wifi dongle is required to create a hotspot if a separate network is wanted for modules.
+A TP-link Tapo account and a Netatmo account are required to use this project. An additional Wifi dongle is required to create a hotspot if a separate network is wanted for modules.
 
 ## Features
 
@@ -72,5 +71,6 @@ systemctl start gardenia
 ==========================
 
 todo:
+
 - history tab and record (store actions)
 - second vpn

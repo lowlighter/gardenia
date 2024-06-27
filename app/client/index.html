@@ -70,6 +70,11 @@
         <section data-flash></section>
       </div>
 
+      <!-- Time -->
+      <div class="fixed" style="bottom: .5rem; right: .5rem; z-index: 100;">
+        <var><span class="muted" x-text="lang.utc_time"></span> <span x-text="new Date(t).toISOString().slice(0, 16)"></span></var>
+      </div>
+
       <!-- Home -->
       <template x-if="tab === 'home'">
         <div>
@@ -88,6 +93,13 @@
                     </template>
                   </template>
                 </select>
+              </template>
+              <template x-if="(source !== '/camera')&&(user.grant_admin || user.grant_data)">
+                <form class="mt-.5">
+                  <footer>
+                    <button class="danger" @click="await api($event, source, {callback:() => refresh_overview(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
+                  </footer>
+                </form>
               </template>
             </div>
           </template>
@@ -115,27 +127,29 @@
                         <div class="rounded px-.5 bg-muted muted" x-text="lang.unknown"></div>
                       </template>
                       <template x-if="target.status_details">
-                        <div>
-                          <template x-if="target.status_details.duration">
-                            <progress class="success" :max="target.status_details.t2 - target.status_details.t1" :value="t - target.status_details.t1"></progress>
-                          </template>
-                          <span x-text="lang.automation_updated_by_rule"></span>
-                          <var x-text="target.status_details.rule"></var>
-                          <span x-text="lang.automation_updated_by_rule_at"></span>
-                          <var x-text="target.status_details.at"></var>
-                          <template x-if="target.status_details.duration">
-                            <div>
-                              <span x-text="lang.automation_updated_by_rule_for"></span>
-                              <var x-text="target.status_details.duration"></var>
-                              <span x-text="lang.automation_updated_by_rule_seconds"></span>
-                            </div>
-                          </template>
-                        </div>
+                        <p>
+                          <small class="muted">
+                            <template x-if="target.status_details.duration">
+                              <progress class="success" :max="target.status_details.t2 - target.status_details.t1" :value="t - target.status_details.t1"></progress>
+                            </template>
+                            <span x-text="lang.automation_updated_by_rule"></span>
+                            <var x-text="target.status_details.rule"></var>
+                            <span x-text="lang.automation_updated_by_rule_at"></span>
+                            <var x-text="target.status_details.at"></var>
+                            <template x-if="target.status_details.duration">
+                              <div>
+                                <span x-text="lang.automation_updated_by_rule_for"></span>
+                                <var x-text="target.status_details.duration"></var>
+                                <span x-text="lang.automation_updated_by_rule_seconds"></span>
+                              </div>
+                            </template>
+                          </small>
+                        </p>
                       </template>
                       <!-- Manual handling -->
                       <template x-if="user.grant_automation">
                         <div>
-                          <template x-if="target.status !== 'unknown'">
+                          <template x-if="(target.status !== 'unknown')&&(target.module !== 'picamera')">
                             <form class="mt-.5" x-data="{data:{duration:0}}">
                               <template x-if="target.status === 'off'">
                                 <label>
@@ -159,8 +173,14 @@
                               <small class="muted" x-text="lang.manual_action_unavailable"></small>
                             </form>
                           </template>
+                          <template x-if="target.module === 'picamera'">
+                            <form class="mt-.5">
+                              <footer>
+                                <button class="active" @click="await api($event, '/api/pictures', {callback:() => refresh_overview(), method:'POST'})" type="submit" x-text="lang.manual_action_picture"></button>
+                              </footer>
+                            </form>
+                          </template>
                         </div>
-
                       </template>
                     </div>
                   </article>
@@ -242,6 +262,20 @@
               <button type="submit" @click="await api($event, endpoint, {callback:() => location.reload(), method:'POST', body:JSON.stringify(data)})" x-text="lang.login_button"></button>
             </footer>
           </form>
+        </section>
+      </template>
+
+      <!-- History -->
+      <template x-if="tab === 'history'">
+        <section>
+          <h2 x-html="lang.history"></h2>
+          <div class="muted mb-1" x-html="lang.history_desc"></div>
+          <template x-if="!history.length">
+            <div class="flash muted" x-html="lang.history_empty"></div>
+          </template>
+          <template x-if="history.length">
+            <div></div>
+          </template>
         </section>
       </template>
 
@@ -535,7 +569,7 @@
           <form x-data="{section:'settings_meta', endpoint:'/api/settings/meta', data:settings.meta}">
             <h2 x-html="lang[section]"></h2>
             <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
-            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'instance_name', required:true, placeholder:lang.app}, {name:'version', disabled:true}]">
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'instance_name', required:true, placeholder:lang.app}, {name:'version', disabled:true}, {name:'mode', disabled:true}]">
               <label :key="name">
                 <span x-html="lang[`${section}_${name}`]"></span><br>
                 <small x-html="lang[`${section}_${name}_desc`]"></small>
@@ -550,7 +584,7 @@
           <form x-data="{section:'settings_visibility', endpoint:'/api/settings/visibility', data:settings.visibility}">
             <h2 x-html="lang[section]"></h2>
             <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
-            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'public_pictures', type:'checkbox'}, {name:'public_camera', type:'checkbox'}, {name:'public_data', type:'checkbox'}, {name:'public_modules', type:'checkbox'}]">
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'public_pictures', type:'checkbox'}, {name:'public_camera', type:'checkbox'}, {name:'public_data', type:'checkbox'}, {name:'public_modules', type:'checkbox'}, {name:'public_history', type:'checkbox'}]">
               <label :key="name">
                 <span x-html="lang[`${section}_${name}`]"></span><br>
                 <small x-html="lang[`${section}_${name}_desc`]"></small>
@@ -569,6 +603,21 @@
             <h2 x-html="lang[section]"></h2>
             <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
             <template x-for="({name, disabled, required, placeholder, type}) in [{name:'tickrate', type:'number'}, {name:'last_tick', type:'datetime-local', disabled:true}]">
+              <label :key="name">
+                <span x-html="lang[`${section}_${name}`]"></span><br>
+                <small x-html="lang[`${section}_${name}_desc`]"></small>
+                <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
+              </label>
+            </template>
+            <footer>
+              <button type="submit" @click="Object.assign(data, await api($event, endpoint, {method:'PUT', body:JSON.stringify(data)}))" x-text="lang[`${section}_button`]"></button>
+            </footer>
+          </form>
+          <!-- Control server -->
+          <form x-data="{section:'settings_control', endpoint:'/api/settings/control', data:settings.control}">
+            <h2 x-html="lang[section]"></h2>
+            <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'url', required:true, type:'url'}, {name:'token', required:true}]">
               <label :key="name">
                 <span x-html="lang[`${section}_${name}`]"></span><br>
                 <small x-html="lang[`${section}_${name}_desc`]"></small>

@@ -54,7 +54,7 @@ type automation_rule = {
 class Server {
 
   /** Constructor */
-  constructor({ports = {server:8080, picamera:8081}, mode = "server" as "full" | "server" | "pi"} = {}) {
+  constructor({ports = {server:8080, picamera:8081}, mode = "app" as "all" | "app" | "ctl"} = {}) {
     const {promise, resolve} = Promise.withResolvers<this>()
     this.ready = promise
     this.#log = new Logger({level:Logger.level.debug})
@@ -63,7 +63,7 @@ class Server {
       (this as rw).#kv = await Deno.openKv(".kv");
       (this as rw).#log.info("kv-store opened");
       (this as rw).#log.info("mode", this.mode);
-      if ((this.mode === "full")||(this.mode === "server")) {
+      if ((this.mode === "all")||(this.mode === "app")) {
         (this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
           .map(({path, name}) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]));
         (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
@@ -75,12 +75,13 @@ class Server {
           public_modules: await this.#get(["settings", "visibility", "public_modules"]),
           public_data: await this.#get(["settings", "visibility", "public_data"]),
           public_camera: await this.#get(["settings", "visibility", "public_camera"]),
+          public_history: await this.#get(["settings", "visibility", "public_history"]),
         }
         await this.#picture_list()
         await this.#tick()
         this.#serve(ports.server)
       }
-      if ((this.mode === "full")||(this.mode === "pi")) {
+      if ((this.mode === "all")||(this.mode === "ctl")) {
         this.#stream(ports.picamera)
       }
       resolve(this)
@@ -94,7 +95,7 @@ class Server {
   readonly #log
 
   /** Server mode. */
-  readonly mode = "full" as "full" | "server" | "pi"
+  readonly mode = "all" as "all" | "app" | "ctl"
 
   /** Key-value store */
   readonly #kv = null as unknown as Deno.Kv
@@ -129,6 +130,14 @@ class Server {
       }
       try {
         switch (true) {
+          // Ping
+          case new URLPattern("/ping", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET":
+                return this.#json({pong:true})
+              default:
+                return this.#unsupported()
+            }
           // Languages
           case new URLPattern("/lang", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -175,6 +184,7 @@ class Server {
                 const {instance_name} = await this.#check(request, {
                   instance_name: is.string().min(1).max(255),
                   version:is.literal(this.version), // Read-only
+                  mode: is.literal(this.mode), // Read-only
                 })
                 await this.#set(log, ["settings", "meta", "instance_name"], instance_name)
               }
@@ -183,6 +193,7 @@ class Server {
                 return this.#json({
                   instance_name: await this.#get(["settings", "meta", "instance_name"]),
                   version: this.version,
+                  ...(user?.grant_admin ? {mode:this.mode} : {}),
                 })
               default:
                 return this.#unsupported()
@@ -192,17 +203,19 @@ class Server {
             switch (request.method) {
               case "PUT":{
                 this.#authorize(user, {grant_admin:true})
-                const {public_pictures, public_modules, public_data, public_camera} = await this.#check(request, {
+                const {public_pictures, public_modules, public_data, public_camera, public_history} = await this.#check(request, {
                   public_pictures:is.boolean(),
                   public_modules:is.boolean(),
                   public_data:is.boolean(),
                   public_camera:is.boolean(),
+                  public_history: is.boolean(),
                 })
                 await this.#set(log, ["settings", "visibility", "public_pictures"], public_pictures)
                 await this.#set(log, ["settings", "visibility", "public_modules"], public_modules)
                 await this.#set(log, ["settings", "visibility", "public_data"], public_data)
                 await this.#set(log, ["settings", "visibility", "public_camera"], public_camera);
-                Object.assign(this.#public, {public_pictures, public_modules, public_data, public_camera})
+                await this.#set(log, ["settings", "visibility", "public_history"], public_history);
+                Object.assign(this.#public, {public_pictures, public_modules, public_data, public_camera, public_history})
               }
               case "GET":
                 this.#authorize(user, null)
@@ -211,6 +224,7 @@ class Server {
                   public_modules: await this.#get(["settings", "visibility", "public_modules"]),
                   public_data: await this.#get(["settings", "visibility", "public_data"]),
                   public_camera: await this.#get(["settings", "visibility", "public_camera"]),
+                  public_history: await this.#get(["settings", "visibility", "public_history"]),
                 })
               default:
                 return this.#unsupported()
@@ -232,6 +246,27 @@ class Server {
                 return this.#json({
                   tickrate: await this.#get(["settings", "tickrate", "tickrate"]),
                   last_tick: await this.#get(["settings", "tickrate", "last_tick"]),
+                })
+              default:
+                return this.#unsupported()
+            }
+          // Control server settings
+          case new URLPattern("/api/settings/control", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "PUT":{
+                this.#authorize(user, {grant_admin:true})
+                const {url, token} = await this.#check(request, {
+                  url: is.string().url().min(1).max(255),
+                  token: is.string().min(1).max(255),
+                })
+                await this.#set(log, ["settings", "control", "url"], url)
+                await this.#set(log, ["settings", "control", "token"], token)
+              }
+              case "GET":
+                this.#authorize(user, {grant_admin:true})
+                return this.#json({
+                  url: await this.#get(["settings", "control", "url"]),
+                  token: await this.#get(["settings", "control", "token"]),
                 })
               default:
                 return this.#unsupported()
@@ -590,7 +625,8 @@ class Server {
                 this.#authorize(user, {grant_data:true})
                 const storage = await this.#get(["settings", "camera", "storage"]) as string
                 if (storage) {
-                  await Deno.remove(resolve(storage, picture))
+                  await Deno.remove(resolve(storage, `${picture}.png`))
+                  await this.#picture_list()
                 }
                 return this.#json({})
               }
@@ -616,8 +652,10 @@ class Server {
                     Object.assign(target, {module_hint:plug.name})
                   Object.assign(target, {status:"unknown", status_details:null})
                   Object.assign(target, await this.#get(["overview", target.module]))
+                  if (target.module === "picamera")
+                    Object.assign(target, {status:"on"})
                   if (!user)
-                    target.module = `${target.name}_${target.module.substring(0, 2)}` // Basic censorship
+                    target.module = crypto.randomUUID()
                 }))
                 return this.#json({targets})
               }
@@ -1167,20 +1205,37 @@ class Server {
   }
 
   /** Set Tapo device state. */
-  async #tapo_state(log:Logger, target:automation_target, status?:string, duration?:number) {
+  async #tapo_state(log:Logger, target:automation_target, status?:string, duration?:number, credentials?:{username:string, password:string}) {
     log = log.with({name:target.name, mac:target.module})
     if (status)
       log.info(`set status to ${status} for ${duration} seconds`)
+    if ((this.mode === "all")||((this.mode === "app"))) {
+      credentials = {
+        username:await this.#get(["settings", "tapo", "username"]) as string,
+        password:await this.#get(["settings", "tapo", "password"]) as string,
+      }
+    }
     switch (this.mode) {
-      case "server":{
-        //TODO(@lowlighter): call api to pi backend
+      case "app":{
+        const url = await this.#get(["settings", "control", "url"]) as string
+        const token = await this.#get(["settings", "control", "token"]) as string
+        log = log.with({url}).debug("forwarding call")
+        const result = await fetch(`${url}`, {body:JSON.stringify({token, args:{target, status, duration, credentials}})}).then(response => response.json())
+        log.debug(result)
+        /*
+          //TODO(@lowlighter): store state
+          const overview = await this.#get(["overview", target.module])
+          if (overview)
+            await this.#set(log, ["overview", target.module], {...overview, status:result.device_on})
+        */
         return
       }
-      case "full":
-      case "pi":{
+      case "all":
+      case "ctl":{
         // Prepare Tapo call
-        const username = await this.#get(["settings", "tapo", "username"]) as string
-        const password = await this.#get(["settings", "tapo", "password"]) as string
+        log.debug("preparing tapo call")
+        if (!credentials)
+          throw new Error("Missing Tapo credentials")
         let action = ""
         switch (status) {
           case "on":
@@ -1205,15 +1260,14 @@ class Server {
         const {stdout} = await command("python", ["-c", [
           "import json",
           "import PyP100",
-          `p100 = PyP100.P100("${ip}", "${username}", "${password}")`,
+          `p100 = PyP100.P100("${ip}", "${credentials.username}", "${credentials.password}")`,
           `p100${action}`,
           `print(json.dumps(p100.getDeviceInfo()))`,
         ].join(";")
         ], {log, throw:true})
         const state = JSON.parse(stdout)
         log.debug(state)
-        //TODO(@lowlighter): store state in ["overview", target]
-        return
+        return state
       }
     }
   }
@@ -1349,7 +1403,7 @@ class Server {
     if (rule.action === "off")
       rule.duration = 0
     await this.#set(log, ["overview", rule.target], {
-      status:rule.action,
+      status:"unknown",
       status_details:{
         at: new Date().toISOString().slice(0, 16),
         rule:rule.name,

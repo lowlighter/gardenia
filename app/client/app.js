@@ -40,6 +40,7 @@
       targets:[]
     },
     pictures:[],
+    history:[],
     graphs:{
       range:{
         from:new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().slice(0, 16),

@@ -490,7 +490,7 @@ export class Server {
                   grant_automation = true
                   grant_data = true
                 }
-                await this.#history_push(log, user, "create_user", {username, grant_admin, grant_automation, grant_data})
+                await this.#history_push(log, user, "create_user", { username, grant_admin, grant_automation, grant_data })
                 await this.#set(log, ["users", username], { username, password: await this.#hash(password), grant_admin, grant_automation, grant_data, logged: null } as user)
               }
               case "GET": {
@@ -514,7 +514,7 @@ export class Server {
                 if (await this.#get(["settings", "root"]) === username) {
                   return this.#json({ error: "This user cannot be deleted" }, { status: Status.NotAcceptable })
                 }
-                await this.#history_push(log, user, "delete_user", {username})
+                await this.#history_push(log, user, "delete_user", { username })
                 await this.#delete(log, ["users", username])
                 return this.#json({})
               }
@@ -531,8 +531,9 @@ export class Server {
                 if (password) {
                   log.info("changing user password")
                   userdata.password = await this.#hash(password)
-                  if (user?.username !== username)
-                    await this.#history_push(log, user, "update_user_password", {username})
+                  if (user?.username !== username) {
+                    await this.#history_push(log, user, "update_user_password", { username })
+                  }
                 }
                 if ((user?.grant_admin) && (await this.#get(["settings", "root"]) !== username)) {
                   log.info("changing user grants")
@@ -543,7 +544,12 @@ export class Server {
                     userdata.grant_automation = true
                     userdata.grant_data = true
                   }
-                  await this.#history_push(log, user, "update_user_grant", {username, grant_admin: userdata.grant_admin, grant_automation: userdata.grant_automation, grant_data: userdata.grant_data})
+                  await this.#history_push(log, user, "update_user_grant", {
+                    username,
+                    grant_admin: userdata.grant_admin,
+                    grant_automation: userdata.grant_automation,
+                    grant_data: userdata.grant_data,
+                  })
                 }
                 await this.#set(log, ["users", username], { ...userdata } as user)
               }
@@ -570,7 +576,7 @@ export class Server {
                 if (await this.#get(["automation", "targets", module])) {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
                 }
-                await this.#history_push(log, user, "create_automation_target", {name, module, disabled})
+                await this.#history_push(log, user, "create_automation_target", { name, module, disabled })
                 await this.#set(log, ["automation", "targets", module], { name, icon, module, disabled } as automation_target)
                 if (disabled && (module !== "picamera")) {
                   await this.#tapo_state(log, await this.#get(["automation", "targets", module]) as automation_target, "off", 0)
@@ -596,7 +602,7 @@ export class Server {
             switch (request.method) {
               case "DELETE": {
                 this.#authorize(user, { grant_automation: true })
-                await this.#history_push(log, user, "delete_automation_target", {module})
+                await this.#history_push(log, user, "delete_automation_target", { module })
                 await this.#delete(log, ["automation", "targets", module])
                 return this.#json({})
               }
@@ -608,7 +614,7 @@ export class Server {
                   module: is.string().min(1).max(255), // Read-only
                   disabled: is.boolean().default(false),
                 })
-                await this.#history_push(log, user, "update_automation_target", {module, name, disabled})
+                await this.#history_push(log, user, "update_automation_target", { module, name, disabled })
                 await this.#set(log, ["automation", "targets", module], { ...targetdata, name, icon, disabled } as automation_target)
                 if (disabled && (module !== "picamera")) {
                   await this.#tapo_state(log, await this.#get(["automation", "targets", module]) as automation_target, "off", 0)
@@ -645,7 +651,7 @@ export class Server {
                 if (await this.#get(["automation", "rules", name])) {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
                 }
-                await this.#history_push(log, user, "create_automation_rule", {name, target, action, duration, priority})
+                await this.#history_push(log, user, "create_automation_rule", { name, target, action, duration, priority })
                 await this.#set(log, ["automation", "rules", name], { name, target, priority, action, duration, conditions, hits: 0, last_hit: null } as automation_rule)
               }
               case "GET": {
@@ -668,7 +674,7 @@ export class Server {
             switch (request.method) {
               case "DELETE": {
                 this.#authorize(user, { grant_automation: true })
-                await this.#history_push(log, user, "delete_automation_rule", {name:rule})
+                await this.#history_push(log, user, "delete_automation_rule", { name: rule })
                 await this.#delete(log, ["automation", "rules", rule])
                 return this.#json({})
               }
@@ -689,7 +695,7 @@ export class Server {
                     delta: is.coerce.number(),
                   })).min(1),
                 })
-                await this.#history_push(log, user, "change_automation_rule", {name:rule, target, action, duration, priority})
+                await this.#history_push(log, user, "change_automation_rule", { name: rule, target, action, duration, priority })
                 await this.#set(log, ["automation", "rules", rule], { ...ruledata, target, priority, action, duration, conditions } as automation_rule)
               }
               case "GET": {
@@ -723,7 +729,7 @@ export class Server {
               case "POST": {
                 this.#authorize(user, { grant_data: true })
                 const file = await this.#picture(log)
-                await this.#history_push(log, user, "create_picture", {file})
+                await this.#history_push(log, user, "create_picture", { file })
                 return this.#json({ file })
               }
               case "GET": {
@@ -743,7 +749,7 @@ export class Server {
                 this.#authorize(user, { grant_data: true })
                 const storage = await this.#get(["settings", "camera", "storage"]) as string
                 if (storage) {
-                  await this.#history_push(log, user, "delete_picture", {file:`${picture}.png`})
+                  await this.#history_push(log, user, "delete_picture", { file: `${picture}.png` })
                   await Deno.remove(resolve(storage, `${picture}.png`))
                   await this.#picture_list()
                 }
@@ -792,7 +798,7 @@ export class Server {
                 const { t } = await this.#check(request, {
                   t: is.coerce.date(),
                 })
-                await this.#history_push(log, user, "update_data", {t: t.toISOString().slice(0, 16)})
+                await this.#history_push(log, user, "update_data", { t: t.toISOString().slice(0, 16) })
                 await this.#netatmo_data(log, t)
               }
               case "GET": {
@@ -807,23 +813,26 @@ export class Server {
                 return this.#unsupported()
             }
           // History
-          case new URLPattern("/api/history/:page", url.origin).test(url.href.replace(url.search, "")):{
+          case new URLPattern("/api/history/:page", url.origin).test(url.href.replace(url.search, "")): {
             switch (request.method) {
               case "GET": {
                 this.#authorize(user, "public_history")
                 const last = await this.#get(["history", "index"]) as number || 0
-                let {page, limit, logs} = await is.object({
+                let { page, limit, logs } = await is.object({
                   page: is.coerce.number().int().min(1).transform((value) => value - 1),
                   limit: is.coerce.number().int().min(1).max(100).default(10),
                   logs: is.enum(["yes", "no"]).default("no"),
                 }).parse({
                   page: url.pathname.split("/").at(-1),
                   limit: url.searchParams.get("limit") ?? undefined,
-                  logs: url.searchParams.get("logs") ?? undefined
+                  logs: url.searchParams.get("logs") ?? undefined,
                 })
-                const entries = [] as Array<{action:string, details:record}>
+                const entries = [] as Array<{ action: string; details: record }>
                 do {
-                  let lines = (await Array.fromAsync(this.#kv.list({ start: ["history", "entries", last - ((page+1) * limit)], end: ["history", "entries", last - page * limit] }, {reverse:true}))).map(({value}) => value) as typeof entries
+                  let lines =
+                    (await Array.fromAsync(this.#kv.list({ start: ["history", "entries", last - ((page + 1) * limit)], end: ["history", "entries", last - page * limit] }, { reverse: true }))).map((
+                      { value },
+                    ) => value) as typeof entries
                   if (!user?.grant_admin) {
                     lines = lines.filter((entry) => entry.details?.public)
                   }
@@ -832,11 +841,12 @@ export class Server {
                   }
                   entries.push(...lines)
                   page++
-                } while (((last - (page+1)*limit > 0)&&(entries.length < limit)))
+                } while (((last - (page + 1) * limit > 0) && (entries.length < limit)))
                 if (!user?.grant_admin) {
-                  entries.forEach(entry => {
-                    if ((entry.action === "action")&&(`${entry.details.rule}`.startsWith("@")))
+                  entries.forEach((entry) => {
+                    if ((entry.action === "action") && (`${entry.details.rule}`.startsWith("@"))) {
                       entry.details.rule = "@"
+                    }
                   })
                 }
                 return this.#json(entries)
@@ -905,7 +915,7 @@ export class Server {
                 log.info("created admin user", username)
                 await this.#set(log, ["status"], "configured")
                 log.info("server configured")
-                await this.#history_push(log, null, "setup", {instance_name})
+                await this.#history_push(log, null, "setup", { instance_name })
                 return this.#login(log, { username, password })
               }
               default:
@@ -915,9 +925,9 @@ export class Server {
           case new URLPattern("/api/export", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
               case "GET": {
-                this.#authorize(user, {grant_admin:true})
+                this.#authorize(user, { grant_admin: true })
                 return this.#json({
-                  settings:[
+                  settings: [
                     [["settings", "meta", "instance_name"], await this.#get(["settings", "meta", "instance_name"])],
                     [["settings", "visibility", "public_modules"], await this.#get(["settings", "visibility", "public_modules"])],
                     [["settings", "visibility", "public_pictures"], await this.#get(["settings", "visibility", "public_pictures"])],
@@ -937,7 +947,7 @@ export class Server {
                     [["settings", "tapo", "api"], await this.#get(["settings", "tapo", "api"])],
                     [["settings", "notes", "content"], await this.#get(["settings", "notes", "content"])],
                   ],
-                  automations:{
+                  automations: {
                     targets: (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value),
                     rules: (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "rules"] }))).map(({ value }) => value),
                   },
@@ -1120,7 +1130,7 @@ export class Server {
     await this.#set(log, ["sessions", session], username)
     await this.#set(log, ["users", username], { ...user, password: hashed, logged: new Date().toISOString().slice(0, 16) } as user)
     log.with({ session: session.slice(0, 8) }).info("login success")
-    await this.#history_push(log, {username}, "login")
+    await this.#history_push(log, { username }, "login")
     return this.#json(user, { cookie: { name: "gardenia_session", value: session, path: "/" } })
   }
 
@@ -1653,11 +1663,11 @@ export class Server {
       },
     })
     if (rule.target !== "picamera") {
-      await this.#history_push(log, null, "action", { public:true, rule: rule.name, target:target.name, action:rule.action, duration:rule.duration })
+      await this.#history_push(log, null, "action", { public: true, rule: rule.name, target: target.name, action: rule.action, duration: rule.duration })
       await this.#tapo_state(log, target, rule.action, rule.duration)
     }
     if ((rule.target === "picamera") && (rule.action === "on")) {
-      await this.#history_push(log, null, "action_picture", { public:true, rule: rule.name, target:target.name })
+      await this.#history_push(log, null, "action_picture", { public: true, rule: rule.name, target: target.name })
       await this.#picture(log)
     }
     if (rule.duration) {
@@ -1669,17 +1679,17 @@ export class Server {
   // ===================================================================================================================
 
   /** History entry addition. */
-  async #history_push(log:Logger, user:Nullable<Pick<user, "username">>, action:string, details?:record<unknown>) {
+  async #history_push(log: Logger, user: Nullable<Pick<user, "username">>, action: string, details?: record<unknown>) {
     const i = await this.#get(["history", "index"]) as number ?? 0
-    await this.#set(log, ["history", "index"], i+1)
-    await this.#set(log, ["history", "entries", i], { user:user?.username ?? null, action, details, at:new Date().toISOString().slice(0, 16), t:Date.now() })
+    await this.#set(log, ["history", "index"], i + 1)
+    await this.#set(log, ["history", "entries", i], { user: user?.username ?? null, action, details, at: new Date().toISOString().slice(0, 16), t: Date.now() })
   }
 
   /** History entry addition (for settings update). */
-  async #history_update_settings(log:Logger, user:Nullable<Pick<user, "username">>, path:string[], to:unknown) {
+  async #history_update_settings(log: Logger, user: Nullable<Pick<user, "username">>, path: string[], to: unknown) {
     const from = await this.#get(path)
-    if (from !== to)
-      await this.#history_push(log, user, "update_settings", { name:path.join("."), from, to })
+    if (from !== to) {
+      await this.#history_push(log, user, "update_settings", { name: path.join("."), from, to })
+    }
   }
-
 }

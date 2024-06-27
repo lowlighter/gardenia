@@ -278,7 +278,7 @@
   "history_entry_tapo_devices": "<var>%%</var> a mis à jour les données des prise connectées Tapo",
   "history_entry_tapo_token_refresh": "Le jeton d'authentification Tapo a été actualisé",
   "history_entry_create_user": "<var>%%</var> a crée un nouvel utilisateur <var>%username</var> (grant_admin=<code>%grant_admin</code>, grant_automation=<code>%grant_automation</code>, grant_data=<code>%grant_data</code>)",
-  "history_entry_delete_user":"<var>%%</var> a supprimé l'utilisateur <var>%username</var>",
+  "history_entry_delete_user": "<var>%%</var> a supprimé l'utilisateur <var>%username</var>",
   "history_entry_update_user_password": "<var>%%</var> a mis à jour le mot de passe de l'utilisateur <var>%username</var>",
   "history_entry_update_user_grant": "<var>%%</var> a mis à jour les droits de l'utilisateur <var>%username</var> (grant_admin=<code>%grant_admin</code>, grant_automation=<code>%grant_automation</code>, grant_data=<code>%grant_data</code>)",
   "history_entry_create_automation_target": "<var>%%</var> a crée une nouvelle cible d'automatisation <var>%module</var> (name=<code>%name</code>, disabled=<code>%disabled</code>)",

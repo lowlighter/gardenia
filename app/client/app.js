@@ -43,10 +43,10 @@
     },
     pictures: [],
     history: {
-      page:1,
+      page: 1,
       limit: 10,
-      logs:"no",
-      entries:[]
+      logs: "no",
+      entries: [],
     },
     graphs: {
       range: {
@@ -139,8 +139,8 @@
     },
     /** Refresh history. */
     async refresh_history() {
-      if ((this.user)||(this.settings.visibility.public_history)) {
-        const search = new URLSearchParams({limit:this.history.limit, logs:this.history.logs})
+      if ((this.user) || (this.settings.visibility.public_history)) {
+        const search = new URLSearchParams({ limit: this.history.limit, logs: this.history.logs })
         this.history.entries = await fetch(`/api/history/${this.history.page}?${search}`).then((response) => response.json())
       }
     },

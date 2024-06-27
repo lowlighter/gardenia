@@ -66,10 +66,3 @@ cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia_app.service
 cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia_ctl.service
 systemctl daemon-reload
 ```
-
-==========================
-
-todo:
-
-- history tab and record (store actions)
-- second vpn

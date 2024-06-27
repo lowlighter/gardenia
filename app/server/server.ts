@@ -53,7 +53,7 @@ type automation_rule = {
  */
 export class Server {
   /** Constructor */
-  constructor({ ports, mode, loglevel = Logger.level.log, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number; kv?: string }) {
+  constructor({ ports, mode, loglevel, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number; kv?: string }) {
     const { promise, resolve } = Promise.withResolvers<this>()
     this.ready = promise
     this.#log = new Logger({ level: loglevel })

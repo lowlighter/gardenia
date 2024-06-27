@@ -5,6 +5,7 @@
       "jsr:@libs/logger@1": "jsr:@libs/logger@1.1.2",
       "jsr:@libs/run@1": "jsr:@libs/run@1.0.1",
       "jsr:@libs/typing@1": "jsr:@libs/typing@1.0.2",
+      "jsr:@libs/typing@2": "jsr:@libs/typing@2.1.1",
       "jsr:@std/assert@0.225.2": "jsr:@std/assert@0.225.2",
       "jsr:@std/assert@^0.224.0": "jsr:@std/assert@0.224.0",
       "jsr:@std/assert@^0.225.2": "jsr:@std/assert@0.225.3",
@@ -29,6 +30,7 @@
       "jsr:@std/http@0.224.4": "jsr:@std/http@0.224.4",
       "jsr:@std/internal@^0.225.1": "jsr:@std/internal@0.225.1",
       "jsr:@std/io@^0.224.0": "jsr:@std/io@0.224.0",
+      "jsr:@std/json@^0.224.0": "jsr:@std/json@0.224.1",
       "jsr:@std/jsonc": "jsr:@std/jsonc@0.224.0",
       "jsr:@std/media-types@^1.0.0-rc.1": "jsr:@std/media-types@1.0.0-rc.1",
       "jsr:@std/net@^0.224.2": "jsr:@std/net@0.224.2",
@@ -47,12 +49,16 @@
       "@libs/run@1.0.1": {
         "integrity": "b22b34ae7629179568c44efecb60f69310af013f65c96e447a5ee8743ff53f42",
         "dependencies": [
+          "jsr:@libs/typing@2",
           "jsr:@std/async@0.224.1",
           "jsr:@std/streams@0.224.2"
         ]
       },
       "@libs/typing@1.0.2": {
         "integrity": "1ee1221792cdb5403c9a719ba09961033d575d61b939887e86a95c586cb6a347"
+      },
+      "@libs/typing@2.1.1": {
+        "integrity": "964e61860716140671718b170d8de4a8705e05d86e7ed0c41883fe2687c91c80"
       },
       "@std/assert@0.224.0": {
         "integrity": "8643233ec7aec38a940a8264a6e3eed9bfa44e7a71cc6b3c8874213ff401967f"
@@ -144,10 +150,14 @@
           "jsr:@std/bytes@^0.224.0"
         ]
       },
+      "@std/json@0.224.1": {
+        "integrity": "2a18a8000707190e467f94b2732f6f88a3094db823765d8c58925bb5efeac29a"
+      },
       "@std/jsonc@0.224.0": {
         "integrity": "673ad766f32c73359e338dc1c4caf5227ac9b75cc029b925e11680cd8831148b",
         "dependencies": [
-          "jsr:@std/assert@^0.224.0"
+          "jsr:@std/assert@^0.224.0",
+          "jsr:@std/json@^0.224.0"
         ]
       },
       "@std/media-types@1.0.0-rc.1": {

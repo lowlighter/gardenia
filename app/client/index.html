@@ -211,16 +211,18 @@
                   <div class="flash muted" x-html="lang.history_empty"></div>
                 </template>
                 <template x-if="history.entries.length">
-                  <table>
-                    <tbody>
-                      <template x-for="entry in history.entries">
-                        <tr>
-                          <td><small class="muted" x-text="entry.at"></small></td>
-                          <td x-html="history_format(entry)"></td>
-                        </tr>
-                      </template>
-                    </tbody>
-                  </table>
+                  <div class="table-responsive">
+                    <table>
+                      <tbody>
+                        <template x-for="entry in history.entries">
+                          <tr>
+                            <td><small class="muted" x-text="entry.at"></small></td>
+                            <td x-html="history_format(entry)"></td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
                 </template>
               </section>
             </div>
@@ -307,35 +309,37 @@
         <section x-data="{data:user, method:'PUT', endpoint:`/api/users/${encodeURIComponent(user.username)}`, grant_admin:user.grant_admin, form_visible:true}">
           <!-- User list -->
           <template x-if="user.grant_admin">
-            <table class="mt-1">
-              <thead>
-                <tr>
-                  <th x-text="lang.user_username"></th>
-                  <th x-text="lang.user_logged"></th>
-                  <th x-text="lang.user_grant_admin"></th>
-                  <th x-text="lang.user_grant_automation"></th>
-                  <th x-text="lang.user_grant_data"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="user in users">
-                  <tr :key="user.username" :class="{selected:user.username === data.username}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/users/${encodeURIComponent(user.username)}`; data = user">
-                    <td x-text="user.username"></td>
-                    <td x-text="user.logged ? user.logged : lang.user_logged_never"></td>
-                    <td x-text="user.grant_admin ? lang.yes : lang.no"></td>
-                    <td x-text="user.grant_admin ? '' : user.grant_automation ? lang.yes : lang.no"></td>
-                    <td x-text="user.grant_admin ? '' : user.grant_data ? lang.yes : lang.no"></td>
+            <div class="table-responsive">
+              <table class="mt-1">
+                <thead>
+                  <tr>
+                    <th x-text="lang.user_username"></th>
+                    <th x-text="lang.user_logged"></th>
+                    <th x-text="lang.user_grant_admin"></th>
+                    <th x-text="lang.user_grant_automation"></th>
+                    <th x-text="lang.user_grant_data"></th>
                   </tr>
-                </template>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="5">
-                    <button class="success" x-text="lang.user_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/users'; data = {username:'', logged:null, password:'', grant_admin:false, grant_automation:false, grant_data:false}"></button>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="user in users">
+                    <tr :key="user.username" :class="{selected:user.username === data.username}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/users/${encodeURIComponent(user.username)}`; data = user">
+                      <td x-text="user.username"></td>
+                      <td x-text="user.logged ? user.logged : lang.user_logged_never"></td>
+                      <td x-text="user.grant_admin ? lang.yes : lang.no"></td>
+                      <td x-text="user.grant_admin ? '' : user.grant_automation ? lang.yes : lang.no"></td>
+                      <td x-text="user.grant_admin ? '' : user.grant_data ? lang.yes : lang.no"></td>
+                    </tr>
+                  </template>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="5">
+                      <button class="success" x-text="lang.user_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/users'; data = {username:'', logged:null, password:'', grant_admin:false, grant_automation:false, grant_data:false}"></button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </template>
           <!-- User form -->
           <template x-if="form_visible">
@@ -373,40 +377,42 @@
             <h2 x-html="lang.automation_target"></h2>
             <div class="muted mb-1" x-html="lang.automation_target_desc"></div>
             <!-- Automation target list -->
-            <table class="mt-1">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th x-text="lang.automation_target_name"></th>
-                  <th x-text="lang.automation_target_module"></th>
-                  <th x-text="lang.automation_target_disabled"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="target in automation.targets">
-                  <tr :key="target.module" :class="{selected:target.module === data.module}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/targets/${encodeURIComponent(target.module)}`; data = target">
-                    <td><img class="automation-icon" :src="`/svg/${target.icon}.svg`" alt=""></td>
-                    <td x-text="target.name"></td>
-                    <td x-text="target.module"></td>
-                    <td x-text="target.disabled ? lang.yes : lang.no"></td>
-                  </tr>
-                </template>
-                <template x-if="!automation.targets.length">
+            <div class="table-responsive">
+              <table class="mt-1">
+                <thead>
                   <tr>
-                    <td colspan="4" class="muted" x-text="lang.automation_target_empty"></td>
+                    <th></th>
+                    <th x-text="lang.automation_target_name"></th>
+                    <th x-text="lang.automation_target_module"></th>
+                    <th x-text="lang.automation_target_disabled"></th>
                   </tr>
+                </thead>
+                <tbody>
+                  <template x-for="target in automation.targets">
+                    <tr :key="target.module" :class="{selected:target.module === data.module}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/targets/${encodeURIComponent(target.module)}`; data = target">
+                      <td><img class="automation-icon" :src="`/svg/${target.icon}.svg`" alt=""></td>
+                      <td x-text="target.name"></td>
+                      <td x-text="target.module"></td>
+                      <td x-text="target.disabled ? lang.yes : lang.no"></td>
+                    </tr>
+                  </template>
+                  <template x-if="!automation.targets.length">
+                    <tr>
+                      <td colspan="4" class="muted" x-text="lang.automation_target_empty"></td>
+                    </tr>
+                  </template>
+                </tbody>
+                <template x-if="user.grant_automation">
+                  <tfoot>
+                    <tr>
+                      <td colspan="4">
+                        <button class="success" x-text="lang.automation_target_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/automation/targets'; data = {icon:'', name:'', module:'', disabled:false}"></button>
+                      </td>
+                    </tr>
+                  </tfoot>
                 </template>
-              </tbody>
-              <template x-if="user.grant_automation">
-                <tfoot>
-                  <tr>
-                    <td colspan="4">
-                      <button class="success" x-text="lang.automation_target_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/automation/targets'; data = {icon:'', name:'', module:'', disabled:false}"></button>
-                    </td>
-                  </tr>
-                </tfoot>
-              </template>
-            </table>
+              </table>
+            </div>
             <template x-if="form_visible">
               <!-- Automation target form -->
               <form>
@@ -457,44 +463,46 @@
             <h2 x-html="lang.automation_rule"></h2>
             <div class="muted mb-1" x-html="lang.automation_rule_desc"></div>
             <!-- Automation rule list -->
-            <table class="mt-1">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th x-text="lang.automation_rule_priority"></th>
-                  <th x-text="lang.automation_rule_name"></th>
-                  <th x-text="lang.automation_rule_target"></th>
-                  <th x-text="lang.automation_rule_action"></th>
-                  <th x-text="lang.automation_rule_last_hit"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="rule in automation.rules">
-                  <tr :key="rule.name" :class="{selected:rule.name === data.name}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`; data = rule">
-                    <td><img class="automation-icon" :src="`/svg/${Object.values(automation.targets).find(target => target.module === rule.target)?.icon}.svg`" alt=""></td>
-                    <td x-text="rule.priority"></td>
-                    <td x-text="rule.name"></td>
-                    <td x-text="Object.values(automation.targets).find(target => target.module === rule.target)?.name"></td>
-                    <td x-text="rule.target === 'picamera' ? lang.automation_rule_action_picture : `${lang[`automation_rule_action_${rule.action}`]}${rule.action === 'on' ? ` (${rule.duration}s)` : ''}`"></td>
-                    <td x-text="rule.last_hit ?? lang.automation_rule_last_hit_never"></td>
-                  </tr>
-                </template>
-                <template x-if="!automation.rules.length">
+            <div class="table-responsive">
+              <table class="mt-1">
+                <thead>
                   <tr>
-                    <td colspan="6" class="muted" x-text="lang.automation_rule_empty"></td>
+                    <th></th>
+                    <th x-text="lang.automation_rule_priority"></th>
+                    <th x-text="lang.automation_rule_name"></th>
+                    <th x-text="lang.automation_rule_target"></th>
+                    <th x-text="lang.automation_rule_action"></th>
+                    <th x-text="lang.automation_rule_last_hit"></th>
                   </tr>
+                </thead>
+                <tbody>
+                  <template x-for="rule in automation.rules">
+                    <tr :key="rule.name" :class="{selected:rule.name === data.name}" @click="form_visible = true; method = 'PUT'; endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`; data = rule">
+                      <td><img class="automation-icon" :src="`/svg/${Object.values(automation.targets).find(target => target.module === rule.target)?.icon}.svg`" alt=""></td>
+                      <td x-text="rule.priority"></td>
+                      <td x-text="rule.name"></td>
+                      <td x-text="Object.values(automation.targets).find(target => target.module === rule.target)?.name"></td>
+                      <td x-text="rule.target === 'picamera' ? lang.automation_rule_action_picture : `${lang[`automation_rule_action_${rule.action}`]}${rule.action === 'on' ? ` (${rule.duration}s)` : ''}`"></td>
+                      <td x-text="rule.last_hit ?? lang.automation_rule_last_hit_never"></td>
+                    </tr>
+                  </template>
+                  <template x-if="!automation.rules.length">
+                    <tr>
+                      <td colspan="6" class="muted" x-text="lang.automation_rule_empty"></td>
+                    </tr>
+                  </template>
+                </tbody>
+                <template x-if="user.grant_automation">
+                  <tfoot>
+                    <tr>
+                      <td colspan="6">
+                        <button class="success" x-text="lang.automation_rule_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/automation/rules'; data = {name:'', hits:0, last_hit:null, target:'', priority:0, action:'on', duration:0, conditions:[]}"></button>
+                      </td>
+                    </tr>
+                  </tfoot>
                 </template>
-              </tbody>
-              <template x-if="user.grant_automation">
-                <tfoot>
-                  <tr>
-                    <td colspan="6">
-                      <button class="success" x-text="lang.automation_rule_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/automation/rules'; data = {name:'', hits:0, last_hit:null, target:'', priority:0, action:'on', duration:0, conditions:[]}"></button>
-                    </td>
-                  </tr>
-                </tfoot>
-              </template>
-            </table>
+              </table>
+            </div>
             <template x-if="form_visible">
               <!-- Automation rule form -->
               <form x-data="{section:'automation_rule'}">

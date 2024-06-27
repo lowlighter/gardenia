@@ -11,6 +11,8 @@ if (import.meta.main) {
       picamera: is.number().default(8081),
     }).default(() => ({})),
     mode: is.enum(["all", "app", "ctl"]),
+    kv: is.string().optional(),
+    loglevel: is.number().optional(),
   }).parse(parseArgs(Deno.args, {}))
   await new Server(args).ready
 }

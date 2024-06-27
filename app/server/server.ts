@@ -53,13 +53,13 @@ type automation_rule = {
  */
 export class Server {
   /** Constructor */
-  constructor({ ports, mode }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl" }) {
+  constructor({ ports, mode, loglevel = Logger.level.log, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number; kv?: string }) {
     const { promise, resolve } = Promise.withResolvers<this>()
     this.ready = promise
-    this.#log = new Logger({ level: Logger.level.debug })
+    this.#log = new Logger({ level: loglevel })
     this.mode = mode
     ;(async () => {
-      ;(this as rw).#kv = await Deno.openKv(".kv")
+      ;(this as rw).#kv = await Deno.openKv(kv)
       ;(this as rw).#log.info("kv-store opened")
       ;(this as rw).#log.info("mode", this.mode)
       ;(this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))

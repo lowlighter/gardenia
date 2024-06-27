@@ -996,11 +996,6 @@ export class Server {
     for (const attempt of [0, 1]) {
       try {
         await this.#netatmo_data(log)
-        await this.#evaluate(log)
-        const targets = (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value) as automation_target[]
-        await Promise.all(
-          targets.filter((target) => target.module !== "picamera").map((target) => this.#tapo_state(log, target).catch((reason) => log.warn(`failed to update ${target.module}`, reason))),
-        )
         break
       } catch (error) {
         if ((attempt === 0) && (`${error}`.includes("Access token expired"))) {
@@ -1008,9 +1003,13 @@ export class Server {
           await this.#netatmo_token(log)
           continue
         }
-        throw error
+        log.error(error)
+        break
       }
     }
+    await this.#evaluate(log).catch((error) => log.error(error))
+    const targets = (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value) as automation_target[]
+    await Promise.all(targets.filter((target) => target.module !== "picamera").map((target) => this.#tapo_state(log, target).catch((error) => log.warn(`failed to update ${target.module}`, error))))
     await this.#set(this.#log, ["settings", "tickrate", "last_tick"], tick)
     if (!await this.#get(["settings", "tickrate", "tickrate"])) {
       log.warn("setting default tickrate as it was not set before")
@@ -1484,17 +1483,17 @@ export class Server {
         if (!credentials) {
           throw new Error("Missing Tapo credentials")
         }
-        let action = ""
+        const actions = []
         switch (status) {
           case "on":
-            action = "p100.turnOn()"
+            actions.push("p100.turnOn()")
             duration ??= 0
             if (duration > 0) {
-              action += `;p100.turnOffWithDelay(${duration})`
+              actions.push(`p100.turnOffWithDelay(${duration})`)
             }
             break
           case "off":
-            action = "p100.turnOff()"
+            actions.push("p100.turnOff()")
         }
         // Resolve IP address
         const { stdout: arp } = await command("arp", ["--numeric"], { log, throw: true })
@@ -1511,7 +1510,7 @@ export class Server {
             "import json",
             "from PyP100 import PyP100",
             `p100 = PyP100.P100("${ip}", "${credentials.username}", "${credentials.password}")`,
-            `${action}`,
+            ...actions,
             `print(json.dumps(p100.getDeviceInfo()))`,
           ].join(";"),
         ], { log, throw: true })
@@ -1562,8 +1561,8 @@ export class Server {
     const { promise, resolve } = Promise.withResolvers<void>()
     const log = this.#log.with({ module: "picamera", port }).debug("streaming...")
     this.#stream_process = promise
-    command("python", [fromFileUrl(import.meta.resolve("../server/python/video.py"))], { env: { STREAM_PORT: `${port}` } }).catch((reason) => {
-      log.error(reason)
+    command("python", [fromFileUrl(import.meta.resolve("../server/python/video.py"))], { env: { STREAM_PORT: `${port}` } }).catch((error) => {
+      log.error(error)
     }).finally(() => {
       log.info("stream terminated")
       resolve()

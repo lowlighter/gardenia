@@ -40,7 +40,7 @@ apt install -y git python3-picamera2 python3-pip
 python3 -c 'import picamera2;print(picamera2)'
 
 # Install pyp100
-pip install git+https://github.com/almottier/TapoP100.git@main
+pip install git+https://github.com/almottier/TapoP100.git@main --break-system-packages
 python3 -c 'import PyP100;print(PyP100)'
 
 # Install deno
@@ -62,7 +62,7 @@ nmcli connection up Hotspot
 # Install gardenia services
 mkdir /gardenia
 git clone https://github.com/lowlighter/gardenia.git /gardenia
-cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia_app.service
-cp /gardenia/server/gardenia.service /etc/systemd/system/gardenia_ctl.service
+cp /gardenia/app/server/gardenia_app.service /etc/systemd/system/gardenia_app.service
+cp /gardenia/app/server/gardenia_ctl.service /etc/systemd/system/gardenia_ctl.service
 systemctl daemon-reload
 ```

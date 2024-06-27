@@ -2,7 +2,7 @@
 // Imports
 import { Logger } from "jsr:@libs/logger@1"
 import { serveDir, serveFile, STATUS_CODE as Status, STATUS_TEXT as StatusText } from "jsr:@std/http@0.224.4"
-import { fromFileUrl, resolve } from "jsr:@std/path@0.225.2"
+import { dirname, fromFileUrl, resolve } from "jsr:@std/path@0.225.2"
 import type { Arg, Nullable, record, rw } from "jsr:@libs/typing@1"
 import { assertEquals } from "jsr:@std/assert@0.225.2"
 import { z as is } from "https://deno.land/x/zod@v3.21.4/mod.ts"
@@ -53,22 +53,28 @@ type automation_rule = {
  */
 export class Server {
   /** Constructor */
-  constructor({ ports, mode, loglevel, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number; kv?: string }) {
+  constructor({ ports, mode, loglevel, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number | string; kv?: string }) {
     const { promise, resolve } = Promise.withResolvers<this>()
     this.ready = promise
-    this.#log = new Logger({ level: loglevel })
+    this.#log = new Logger({ level: loglevel as number })
     this.mode = mode
     ;(async () => {
-      ;(this as rw).#kv = await Deno.openKv(kv)
-      ;(this as rw).#log.info("kv-store opened")
       ;(this as rw).#log.info("mode", this.mode)
+      ;(this as rw).#log.debug("kv-store opening", kv)
+      if (kv) {
+        await ensureDir(dirname(kv))
+      }
+      ;(this as rw).#kv = await Deno.openKv(kv)
+      ;(this as rw).#log.info("kv-store opened", kv)
+      ;(this as rw).#log.debug("loading languages")
       ;(this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
         .map(({ path, name }) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]))
-      ;(this as rw).#log.info("languages loaded", Object.keys(this.#lang))
+      ;(this as rw).#log.info("loaded languages", Object.keys(this.#lang))
       if ((this.mode === "all") || (this.mode === "app")) {
+        ;(this as rw).#log.debug("loading icons")
         ;(this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
           .map(({ name }) => name.replace(".svg", ""))
-        ;(this as rw).#log.info("icons loaded ", Object.keys(this.#lang))
+        ;(this as rw).#log.info("loaded icons ", Object.keys(this.#lang))
         ;(this as rw).#public = {
           public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
           public_modules: await this.#get(["settings", "visibility", "public_modules"]),

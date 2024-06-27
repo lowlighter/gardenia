@@ -12,7 +12,7 @@ if (import.meta.main) {
     }).default(() => ({})),
     mode: is.enum(["all", "app", "ctl"]),
     kv: is.string().optional(),
-    loglevel: is.number().optional(),
+    loglevel: is.union([is.number(), is.string()]).optional(),
   }).parse(parseArgs(Deno.args, {}))
   await new Server(args).ready
 }

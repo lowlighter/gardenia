@@ -76,26 +76,30 @@
           <!-- Camera -->
           <template x-if="user.logged || settings.visibility.public_camera || settings.visibility.public_pictures">
             <div class="camera" x-data="{source:'/camera'}">
-              <img :src="source" alt="">
-              <template x-if="user.logged || settings.visibility.public_pictures">
-                <select x-model="source">
-                  <template x-if="user.logged || settings.visibility.public_camera">
-                    <option value="/camera" x-text="lang.data_camera"></option>
-                  </template>
-                  <template x-if="user.logged || settings.visibility.public_pictures">
-                    <template x-for="picture in pictures">
-                      <option :key="picture" :value="`/api/pictures/${picture}`" x-text="picture"></option>
+              <div class="camera-wrapper">
+                <img :src="source" alt="">
+              </div>
+              <div>
+                <template x-if="user.logged || settings.visibility.public_pictures">
+                  <select x-model="source">
+                    <template x-if="user.logged || settings.visibility.public_camera">
+                      <option value="/camera" x-text="lang.data_camera"></option>
                     </template>
-                  </template>
-                </select>
-              </template>
-              <template x-if="(source !== '/camera')&&(user.grant_admin || user.grant_data)">
-                <form class="mt-.5">
-                  <footer>
-                    <button class="danger" @click="await api($event, source, {callback:() => refresh_overview(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
-                  </footer>
-                </form>
-              </template>
+                    <template x-if="user.logged || settings.visibility.public_pictures">
+                      <template x-for="picture in pictures">
+                        <option :key="picture" :value="`/api/pictures/${picture}`" x-text="picture"></option>
+                      </template>
+                    </template>
+                  </select>
+                </template>
+                <template x-if="(source !== '/camera')&&(user.grant_admin || user.grant_data)">
+                  <form class="mt-.5">
+                    <footer>
+                      <button class="danger" @click="await api($event, source, {callback:() => refresh_overview(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
+                    </footer>
+                  </form>
+                </template>
+              </div>
             </div>
           </template>
           <!-- Modules -->
@@ -186,8 +190,9 @@
           <!-- History -->
           <template x-if="user.logged || settings.visibility.public_history">
             <div>
+              <!-- History filter -->
               <h2 x-html="lang.history"></h2>
-              <div class="mt-1 flex">
+              <div class="mt-1 flex filter">
                 <label class="mr-1">
                   <span x-html="lang.history_page"></span>
                   <input required type="number" min="1" x-model="history.page" @change="refresh_history()">
@@ -206,6 +211,7 @@
                   </label>
                 </template>
               </div>
+              <!-- History entries -->
               <section>
                 <template x-if="!history.entries.length">
                   <div class="flash muted" x-html="lang.history_empty"></div>
@@ -232,7 +238,7 @@
             <div>
               <h2 x-text="lang.data"></h2>
               <!-- Data range -->
-              <div class="mt-1 flex" x-data="{section:'graphs', endpoint:'/api/data', data:graphs.range}">
+              <div class="mt-1 flex filter" x-data="{section:'graphs', endpoint:'/api/data', data:graphs.range}">
                 <template x-for="({name, disabled, required, placeholder, type}) in [{name:'from', required:true, type:'datetime-local'}, {name:'to', required:true, type:'datetime-local'}]">
                   <label :key="name" class="mr-1">
                     <span x-html="lang[`${section}_${name}`]"></span>

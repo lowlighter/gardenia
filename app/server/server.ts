@@ -879,8 +879,10 @@ export class Server {
                 const { username, password } = await this.#check(request, {
                   username: is.string(),
                   password: is.string(),
-                  grants: is.union([is.array(is.string()), is.string().transform((value) => value.split(",").map((value) => value.trim()))]), // Read-only
                   logged: is.string().nullable(), // Read-only
+                  grant_admin: is.boolean().nullable(), // Read-only
+                  grant_automation: is.boolean().nullable(), // Read-only
+                  grant_data: is.boolean().nullable(), // Read-only
                 })
                 return this.#login(log, { username, password })
               }

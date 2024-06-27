@@ -1,0 +1,124 @@
+/* Matcha overrides */
+body > header nav menu svg {
+  fill: currentColor;
+}
+
+body > header nav menu .selected svg {
+  fill: var(--accent);
+}
+
+form:first-child {
+  margin-top: 1rem;
+}
+
+form h2:first-child {
+  margin-top: 0;
+}
+
+/* Flash messages */
+.flash {
+  position: relative;
+  overflow: hidden;
+}
+
+.flash .timer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: .25rem;
+  background-color: currentColor;
+  animation: timer 5s linear 1;
+}
+
+@keyframes timer {
+  from { width: 100%; }
+  to { width: 0; }
+}
+
+/* Grids */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.flex.filter {
+  flex-wrap: wrap;
+  max-width: 100vw;
+}
+
+@media (min-width: 700px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr));
+  }
+  .flex.filter {
+    flex-wrap: nowrap;
+    max-width: 100%;
+  }
+}
+
+article {
+  margin: 0;
+  justify-content: flex-start;
+}
+
+article h3 {
+  margin: 0;
+}
+
+article .trend {
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
+article.disabled {
+  opacity: .5;
+}
+
+/* Tables */
+table tbody tr:hover {
+  background-color: var(--bg-accent);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+table tbody tr.selected {
+  background-color: var(--bg-active);
+  color: var(--active);
+}
+
+/* Automation icons */
+.automation-icon {
+  width: 1.5em;
+  height: 1.5em;
+  vertical-align: middle;
+  filter: brightness(100);
+}
+
+.automation-icon.selected {
+  filter: none;
+}
+
+.automation-icon + input[type="radio"] {
+  display: none;
+}
+
+/* Camera */
+.camera {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.camera-wrapper {
+  max-width: 70vw;
+}
+
+@media (min-width: 700px) {
+  .camera-wrapper {
+    max-width: 720px;
+  }
+}

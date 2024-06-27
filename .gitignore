@@ -1,5 +1,4 @@
 .kv
 .kv-shm
 .kv-wal
-settings.jsonc
-server/pictures/*.png
+app/pictures

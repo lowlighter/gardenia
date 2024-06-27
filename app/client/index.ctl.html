@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Gardenia</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="stylesheet" href="/css/matcha.css">
+    <link rel="stylesheet" href="/app.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/js/alpine.min.js"></script>
+  </head>
+  <body class="layout-simple" x-data="app">
+    <header>
+      <h1 x-text="lang.app"></h1>
+      <nav><menu></menu></nav>
+    </header>
+    <main>
+      <!-- Flash messages -->
+      <div class="fixed" style="top: calc(var(--ly-header-size) + .5rem); left: 0; right: 0; z-index: 100;">
+        <section data-flash></section>
+      </div>
+      <!-- Notice -->
+      <section>
+        <form>
+          <div x-html="lang.mode_control"></div>
+          <br>
+          <label :key="name">
+            <span x-html="lang.mode_control_token"></span><br>
+            <small x-html="lang.mode_control_token_desc"></small>
+            <input x-model="token.token" type="text" disabled>
+          </label>
+          <footer>
+            <button class="attention" type="submit" @click="await api($event, '/token', {callback:() => location.reload(), method:'POST'})" x-text="lang.mode_control_token_button"></button>
+          </footer>
+        </form>
+      </section>
+    </main>
+    <script src="/app.ctl.js"></script>
+  </body>
+</html>

@@ -42,7 +42,12 @@
       targets: [],
     },
     pictures: [],
-    history: [],
+    history: {
+      page:1,
+      limit: 10,
+      logs:"no",
+      entries:[]
+    },
     graphs: {
       range: {
         from: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().slice(0, 16),
@@ -95,6 +100,7 @@
         case "home":
           this.refresh_graphs(null)
           this.refresh_overview()
+          this.refresh_history()
           break
       }
       if (this.tab === "home") {
@@ -111,6 +117,12 @@
       }
       this.timeout = setTimeout(() => this.tick(), 1000)
     },
+    /** Format history */
+    history_format(entry) {
+      return (this.lang[`history_entry_${entry.action}`] ?? entry.action)
+        .replace(/%%/g, entry.user)
+        .replace(/%([\w_]+)/g, (_, key) => entry.details?.[key])
+    },
     /** Refresh overview. */
     async refresh_overview() {
       if (this.user.grant_data) {
@@ -123,6 +135,13 @@
         if (this.settings.visibility.public_pictures) {
           this.pictures = await fetch("/api/pictures").then((response) => response.json())
         }
+      }
+    },
+    /** Refresh history. */
+    async refresh_history() {
+      if ((this.user)||(this.settings.visibility.public_history)) {
+        const search = new URLSearchParams({limit:this.history.limit, logs:this.history.logs})
+        this.history.entries = await fetch(`/api/history/${this.history.page}?${search}`).then((response) => response.json())
       }
     },
     /** Refresh users list. */
@@ -173,7 +192,7 @@
         const name = graph.dataset.graph
         const { labels, datasets } = this.graphs.data[name].graph
         const { graph_type } = this.graphs.data[name]
-        datasets.forEach((dataset) => dataset.label = this.lang[`data_${dataset.label}`].replaceAll(/<\/?.*?>/g, ""))
+        datasets.forEach((dataset) => dataset.label = this.lang[`data_${dataset.label}`]?.replaceAll(/<\/?.*?>/g, "") ?? "")
         if (charts[name]) {
           charts[name].data.labels = labels
           charts[name].data.datasets = datasets

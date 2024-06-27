@@ -125,7 +125,7 @@ export class Server {
       const url = new URL(request.url)
       const { gardenia_session: session } = getCookies(request.headers)
       let log = this.#log.with({ session: session?.slice(0, 8) ?? null, method: request.method, url: url.pathname }).debug("processing request")
-      const user = session ? await this.#session(log, session) : null
+      const user = session ? await this.#session(log, session).catch(() => null) : null
       if (user) {
         log = log.with({ username: user.username })
       }
@@ -277,11 +277,11 @@ export class Server {
               case "GET":
                 this.#authorize(user, null)
                 return this.#json({
-                  public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
-                  public_modules: await this.#get(["settings", "visibility", "public_modules"]),
-                  public_data: await this.#get(["settings", "visibility", "public_data"]),
-                  public_camera: await this.#get(["settings", "visibility", "public_camera"]),
-                  public_history: await this.#get(["settings", "visibility", "public_history"]),
+                  public_pictures: await this.#get(["settings", "visibility", "public_pictures"]) ?? false,
+                  public_modules: await this.#get(["settings", "visibility", "public_modules"]) ?? false,
+                  public_data: await this.#get(["settings", "visibility", "public_data"]) ?? false,
+                  public_camera: await this.#get(["settings", "visibility", "public_camera"]) ?? false,
+                  public_history: await this.#get(["settings", "visibility", "public_history"]) ?? false,
                 })
               default:
                 return this.#unsupported()
@@ -293,7 +293,7 @@ export class Server {
               case "PUT": {
                 this.#authorize(user, { grant_admin: true })
                 const { tickrate } = await this.#check(request, {
-                  tickrate: is.number().min(60),
+                  tickrate: is.coerce.number().min(60),
                   last_tick: is.string().nullable(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "tickrate", "tickrate"], tickrate)
@@ -743,7 +743,7 @@ export class Server {
                 this.#authorize(user, { grant_data: true })
                 const storage = await this.#get(["settings", "camera", "storage"]) as string
                 if (storage) {
-                  await this.#history_push(log, user, "delete_picture", {file:picture})
+                  await this.#history_push(log, user, "delete_picture", {file:`${picture}.png`})
                   await Deno.remove(resolve(storage, `${picture}.png`))
                   await this.#picture_list()
                 }
@@ -808,11 +808,37 @@ export class Server {
             }
           // History
           case new URLPattern("/api/history/:page", url.origin).test(url.href.replace(url.search, "")):{
-            const page = Number(url.pathname.split("/").at(-1)) - 1
             switch (request.method) {
               case "GET": {
                 this.#authorize(user, "public_history")
-                const entries = (await Array.fromAsync(this.#kv.list({ start: ["history", "entries", page * 30], end: ["history", "entries", ((page+1) * 30)] }))).map(({value}) => value)
+                const last = await this.#get(["history", "index"]) as number || 0
+                let {page, limit, logs} = await is.object({
+                  page: is.coerce.number().int().min(1).transform((value) => value - 1),
+                  limit: is.coerce.number().int().min(1).max(100).default(10),
+                  logs: is.enum(["yes", "no"]).default("no"),
+                }).parse({
+                  page: url.pathname.split("/").at(-1),
+                  limit: url.searchParams.get("limit") ?? undefined,
+                  logs: url.searchParams.get("logs") ?? undefined
+                })
+                const entries = [] as Array<{action:string, details:record}>
+                do {
+                  let lines = (await Array.fromAsync(this.#kv.list({ start: ["history", "entries", last - ((page+1) * limit)], end: ["history", "entries", last - page * limit] }, {reverse:true}))).map(({value}) => value) as typeof entries
+                  if (!user?.grant_admin) {
+                    lines = lines.filter((entry) => entry.details?.public)
+                  }
+                  if (logs !== "yes") {
+                    lines = lines.filter((entry) => entry.action === "action")
+                  }
+                  entries.push(...lines)
+                  page++
+                } while (((last - (page+1)*limit > 0)&&(entries.length < limit)))
+                if (!user?.grant_admin) {
+                  entries.forEach(entry => {
+                    if ((entry.action === "action")&&(`${entry.details.rule}`.startsWith("@")))
+                      entry.details.rule = "@"
+                  })
+                }
                 return this.#json(entries)
               }
               default:
@@ -1186,7 +1212,7 @@ export class Server {
     const token = `${await this.#get(["settings", "netatmo", "access_token"]) ?? ""}`
     const headers = new Headers({ Accept: "application/json", Authorization: `Bearer ${token}` })
     const modules = await this.#get(["settings", "netatmo", "modules"]) as { mac: string; type: keyof Server["netatmo_data"] }[]
-    if (!modules.length) {
+    if (!modules?.length) {
       log.warn("netatmo data fetching skipped: no modules (call #netatmo_station first)")
       return
     }
@@ -1627,11 +1653,11 @@ export class Server {
       },
     })
     if (rule.target !== "picamera") {
-      await this.#history_push(log, null, "action", { rule: rule.name, target:target.name, action:rule.action, duration:rule.duration })
+      await this.#history_push(log, null, "action", { public:true, rule: rule.name, target:target.name, action:rule.action, duration:rule.duration })
       await this.#tapo_state(log, target, rule.action, rule.duration)
     }
     if ((rule.target === "picamera") && (rule.action === "on")) {
-      await this.#history_push(log, null, "action_picture", { rule: rule.name, target:target.name })
+      await this.#history_push(log, null, "action_picture", { public:true, rule: rule.name, target:target.name })
       await this.#picture(log)
     }
     if (rule.duration) {

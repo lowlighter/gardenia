@@ -72,6 +72,7 @@
       netatmo_modules:[],
       tapo:{},
       tapo_modules:[],
+      notes:{},
     },
     lang:await fetch("/lang/fr").then((response) => response.json()),
     icons:await fetch("/icons").then((response) => response.json()),
@@ -146,6 +147,7 @@
         this.settings.netatmo_modules = await fetch("/api/settings/netatmo/modules").then((response) => response.json())
         this.settings.tapo = await fetch("/api/settings/tapo").then((response) => response.json())
         this.settings.tapo_modules = await fetch("/api/settings/tapo/modules").then((response) => response.json())
+        this.settings.notes = await fetch("/api/settings/notes").then((response) => response.json())
       }
     },
     /** Refresh charts. */

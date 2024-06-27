@@ -431,6 +431,24 @@ export class Server {
               default:
                 return this.#unsupported()
             }
+          // Notes settings
+          case new URLPattern("/api/settings/notes", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "PUT":{
+                this.#authorize(user, {grant_admin:true})
+                const {content} = await this.#check(request, {
+                  content: is.string().max(10000),
+                })
+                await this.#set(log, ["settings", "notes", "content"], content)
+              }
+              case "GET":
+                this.#authorize(user, {grant_admin:true})
+                return this.#json({
+                  content: await this.#get(["settings", "notes", "content"]),
+                })
+              default:
+                return this.#unsupported()
+            }
           // Users
           case new URLPattern("/api/users", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {

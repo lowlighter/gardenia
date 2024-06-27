@@ -23,7 +23,7 @@
 
   // Visibility settings
   "settings_visibility": "Configuration de la visibilité des données",
-  "settings_visibility_desc": "Cette section permet de configurer les paramètres de visibilité des données en tant que visiteur (utilisateur non connectée).<br>Notez qu'un utilisateur non authentifié n'aura accès à l'application qu'en lecture seule et ne sera pas capable d'effectuer d'actions ou de changements.",
+  "settings_visibility_desc": "Cette section permet de configurer les paramètres de visibilité des données en tant que visiteur (utilisateur non connectée).<br>Notez qu'un utilisateur non authentifié aura accès à l'application en lecture seule uniquement et ne sera pas capable d'effectuer des actions ou des changements.",
   "settings_visibility_public_pictures": "Photos publiques",
   "settings_visibility_public_pictures_desc": "Les photos prises par la caméra devraient être visibles même sans être connecté.",
   "settings_visibility_public_camera": "Vidéo publique",
@@ -32,26 +32,26 @@
   "settings_visibility_public_data_desc": "Les données collectées par l'application devraient être accessibles même sans être connecté.",
   "settings_visibility_public_modules": "Données de modules publiques",
   "settings_visibility_public_modules_desc": "L'état des différents modules de la serre connectée devraient être accessibles même sans être connecté.",
-  "settings_visibility_public_history": "Historique d'automatisation publique",
-  "settings_visibility_public_history_desc": "L'historique des changements d d'automatisation devrait être accessible même sans être connecté.<br>Certaines entrées pourraient être affichées de façon différente lors que l'utilisateur n'est pas connectée pour des raisons de confidentialité.",
+  "settings_visibility_public_history": "Historique publique",
+  "settings_visibility_public_history_desc": "L'historique des changements d'automatisation devrait être accessible même sans être connecté.<br>Certaines entrées pourraient être affichées de façon différente lors que l'utilisateur n'est pas connectée pour des raisons de confidentialité.",
   "settings_visibility_button": "Enregistrer les paramètres",
 
   // Tickrate settings
   "settings_tickrate": "Configuration du taux de rafraîchissement des données",
-  "settings_tickrate_desc": "Cette section permet de configurer le taux de rafraîchissement des données collectées par l'application.<br>Un taux de rafraîchissement plus élevé permettra d'avoir des données plus récentes, mais cela peut également augmenter la charge du serveur.",
+  "settings_tickrate_desc": "Cette section permet de configurer le taux de rafraîchissement des données collectées par l'application.<br>Un taux de rafraîchissement plus élevé permettra d'avoir des données plus récentes et une meilleure réactivité, mais cela peut également augmenter la charge du serveur.",
   "settings_tickrate_tickrate": "Taux de rafraîchissement des données",
-  "settings_tickrate_tickrate_desc": "Le serveur collectera les données Netatmo, évaluera les règles d'automatisation et synchronisera les prises connectées Tapo à ce taux de rafraîchissement (en secondes).<br> Notez que même avec un taux de rafraîchissement élevé, la collecte des données Netatmo reste limitée par ce qui est disponible sur les serveurs Netatmo.",
-  "settings_tickrate_last_tick": "Dernière rafraîchissement des données",
+  "settings_tickrate_tickrate_desc": "Le serveur collectera les données Netatmo, évaluera les règles d'automatisation et synchronisera les prises connectées Tapo à ce taux de rafraîchissement (en secondes). Notez que même avec un taux de rafraîchissement élevé, la collecte des données Netatmo reste limitée par ce qui est disponible sur les serveurs Netatmo.",
+  "settings_tickrate_last_tick": "Dernier rafraîchissement des données",
   "settings_tickrate_last_tick_desc": "Date du dernier rafraîchissement des données par le serveur.",
   "settings_tickrate_button": "Enregistrer les paramètres",
 
   // Controls settings
   "settings_control": "Configuration du serveur de contrôle",
-  "settings_control_desc": "Cette section permet de configurer les paramètres du serveur de contrôle que l'application utilise pour gérer l'état des modules.",
+  "settings_control_desc": "Cette section permet de configurer les paramètres du serveur de contrôle que l'application utilise pour gérer l'état des modules. Un serveur en mode <code>ctl</code> doit être configuré au préalable.",
   "settings_control_url": "Adresse HTTP du serveur de contrôle",
   "settings_control_url_desc": "L'adresse du serveur de contrôle. Par exemple, <var>http://0.0.0.0:8080</var>.",
   "settings_control_token": "Jeton d'authentification du serveur de contrôle",
-  "settings_control_token_desc": "Le jeton d'authentification du serveur de contrôle. Celui-ci doit être fourni par le serveur de contrôle pour que l'application puisse communiquer avec lui.",
+  "settings_control_token_desc": "Le jeton d'authentification du serveur de contrôle. Celui-ci doit être fourni par le serveur de contrôle pour que l'application puisse communiquer avec lui. Vous pouvez le récupérer en accédant à la page web du serveur de contrôle.",
   "settings_control_button": "Enregistrer les paramètres",
 
   // Cemara settings
@@ -132,6 +132,11 @@
   "settings_tapo_modules_firmware": "Firmware de la prise connectée",
   "settings_tapo_modules_firmware_desc": "Version du firmware de la prise Tapo.",
   "settings_tapo_modules_button": "Récupérer les données de modules",
+
+  // Notes
+  "settings_notes": "Notes d'administration",
+  "settings_notes_desc": "Cette section peut-être utilisée pour stocker des informations supplémentaires. Ces notes ne sont visibles que par les utilisateurs disposant de privilèges d'administration.",
+  "settings_notes_button": "Mettre à jour",
 
   // Login
   "login": "Connexion",

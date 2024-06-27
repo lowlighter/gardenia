@@ -734,6 +734,17 @@
               </footer>
             </details>
           </form>
+          <!-- Notes -->
+          <form x-data="{section:'settings_notes', endpoint:'/api/settings/notes', data:settings.notes}">
+            <h2 x-html="lang[section]"></h2>
+            <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
+            <label>
+              <textarea style="resize: both;" rows="12" x-model="data.content"></textarea>
+            </label>
+            <footer>
+              <button type="submit" @click="Object.assign(data, await api($event, endpoint, {method:'PUT', body:JSON.stringify(data)}))" x-text="lang[`${section}_button`]"></button>
+            </footer>
+          </form>
         </section>
       </template>
 

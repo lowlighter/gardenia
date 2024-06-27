@@ -54,44 +54,48 @@ type automation_rule = {
 export class Server {
   /** Constructor */
   constructor({ ports, mode, loglevel, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number | string; kv?: string }) {
-    const { promise, resolve } = Promise.withResolvers<this>()
+    const { promise, resolve, reject } = Promise.withResolvers<this>()
     this.ready = promise
     this.#log = new Logger({ level: loglevel as number })
     this.mode = mode
     ;(async () => {
-      ;(this as rw).#log.info("mode", this.mode)
-      ;(this as rw).#log.debug("kv-store opening", kv)
-      if (kv) {
-        await ensureDir(dirname(kv))
-      }
-      ;(this as rw).#kv = await Deno.openKv(kv)
-      ;(this as rw).#log.info("kv-store opened", kv)
-      ;(this as rw).#log.debug("loading languages")
-      ;(this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
-        .map(({ path, name }) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]))
-      ;(this as rw).#log.info("loaded languages", Object.keys(this.#lang))
-      if ((this.mode === "all") || (this.mode === "app")) {
-        ;(this as rw).#log.debug("loading icons")
-        ;(this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
-          .map(({ name }) => name.replace(".svg", ""))
-        ;(this as rw).#log.info("loaded icons ", Object.keys(this.#lang))
-        ;(this as rw).#public = {
-          public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
-          public_modules: await this.#get(["settings", "visibility", "public_modules"]),
-          public_data: await this.#get(["settings", "visibility", "public_data"]),
-          public_camera: await this.#get(["settings", "visibility", "public_camera"]),
-          public_history: await this.#get(["settings", "visibility", "public_history"]),
+      try {
+        ;(this as rw).#log.info("mode", this.mode)
+        ;(this as rw).#log.debug("kv-store opening", kv)
+        if (kv) {
+          await ensureDir(dirname(kv))
         }
-        await this.#picture_list()
+        ;(this as rw).#kv = await Deno.openKv(kv)
+        ;(this as rw).#log.info("kv-store opened", kv)
+        ;(this as rw).#log.debug("loading languages")
+        ;(this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
+          .map(({ path, name }) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]))
+        ;(this as rw).#log.info("loaded languages", Object.keys(this.#lang))
+        if ((this.mode === "all") || (this.mode === "app")) {
+          ;(this as rw).#log.debug("loading icons")
+          ;(this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
+            .map(({ name }) => name.replace(".svg", ""))
+          ;(this as rw).#log.info("loaded icons ", Object.keys(this.#lang))
+          ;(this as rw).#public = {
+            public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
+            public_modules: await this.#get(["settings", "visibility", "public_modules"]),
+            public_data: await this.#get(["settings", "visibility", "public_data"]),
+            public_camera: await this.#get(["settings", "visibility", "public_camera"]),
+            public_history: await this.#get(["settings", "visibility", "public_history"]),
+          }
+          await this.#picture_list()
+        }
+        if ((this.mode === "all") || (this.mode === "ctl")) {
+          this.#stream(ports.picamera)
+        }
+        await this.#serve(ports.server)
+        if ((this.mode === "all") || (this.mode === "app")) {
+          await this.#tick()
+        }
+        resolve(this)
+      } catch (error) {
+        reject(error)
       }
-      if ((this.mode === "all") || (this.mode === "ctl")) {
-        this.#stream(ports.picamera)
-      }
-      await this.#serve(ports.server)
-      if ((this.mode === "all") || (this.mode === "app")) {
-        await this.#tick()
-      }
-      resolve(this)
     })()
   }
 

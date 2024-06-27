@@ -54,26 +54,35 @@ type automation_rule = {
 class Server {
 
   /** Constructor */
-  constructor() {
+  constructor({ports = {server:8080, picamera:8081}, mode = "server" as "full" | "server" | "pi"} = {}) {
     const {promise, resolve} = Promise.withResolvers<this>()
     this.ready = promise
     this.#log = new Logger({level:Logger.level.debug})
+    this.mode = mode
     ;(async () => {
       (this as rw).#kv = await Deno.openKv(".kv");
       (this as rw).#log.info("kv-store opened");
-      (this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
-        .map(({path, name}) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]));
-      (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
-      (this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
-        .map(({name}) => name.replace(".svg", ""));
-      (this as rw).#log.info("icons loaded ", Object.keys(this.#lang));
-      (this as rw).#public = {
-        public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
-        public_modules: await this.#get(["settings", "visibility", "public_modules"]),
-        public_data: await this.#get(["settings", "visibility", "public_data"]),
-        public_camera: await this.#get(["settings", "visibility", "public_camera"]),
+      (this as rw).#log.info("mode", this.mode);
+      if ((this.mode === "full")||(this.mode === "server")) {
+        (this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
+          .map(({path, name}) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]));
+        (this as rw).#log.info("languages loaded", Object.keys(this.#lang));
+        (this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
+          .map(({name}) => name.replace(".svg", ""));
+        (this as rw).#log.info("icons loaded ", Object.keys(this.#lang));
+        (this as rw).#public = {
+          public_pictures: await this.#get(["settings", "visibility", "public_pictures"]),
+          public_modules: await this.#get(["settings", "visibility", "public_modules"]),
+          public_data: await this.#get(["settings", "visibility", "public_data"]),
+          public_camera: await this.#get(["settings", "visibility", "public_camera"]),
+        }
+        await this.#picture_list()
+        await this.#tick()
+        this.#serve(ports.server)
       }
-      await this.#picture_list()
+      if ((this.mode === "full")||(this.mode === "pi")) {
+        this.#stream(ports.picamera)
+      }
       resolve(this)
     })()
   }
@@ -83,6 +92,9 @@ class Server {
 
   /** Logger. */
   readonly #log
+
+  /** Server mode. */
+  readonly mode = "full" as "full" | "server" | "pi"
 
   /** Key-value store */
   readonly #kv = null as unknown as Deno.Kv
@@ -105,9 +117,9 @@ class Server {
   // ===================================================================================================================
 
   /** Serve HTTP requests. */
-  async serve() {
+  async #serve(port:number) {
     await this.ready
-    Deno.serve({port:8000, onListen:({hostname, port}) => this.#log.info(`server listening on ${hostname}:${port}`)}, async request => {
+    Deno.serve({port, onListen:({hostname, port}) => this.#log.info(`server listening on ${hostname}:${port}`)}, async request => {
       const url = new URL(request.url)
       const { gardenia_session: session } = getCookies(request.headers)
       let log = this.#log.with({session:session?.slice(0, 8) ?? null, method:request.method, url:url.pathname}).debug("processing request")
@@ -203,6 +215,27 @@ class Server {
               default:
                 return this.#unsupported()
             }
+
+          // Tickrate settings
+          case new URLPattern("/api/settings/tickrate", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "PUT":{
+                this.#authorize(user, {grant_admin:true})
+                const {tickrate} = await this.#check(request, {
+                  tickrate:is.number().min(60),
+                  last_tick:is.string().nullable(), // Read-only
+                })
+                await this.#set(log, ["settings", "tickrate", "tickrate"], tickrate)
+              }
+              case "GET":
+                this.#authorize(user, null)
+                return this.#json({
+                  tickrate: await this.#get(["settings", "tickrate", "tickrate"]),
+                  last_tick: await this.#get(["settings", "tickrate", "last_tick"]),
+                })
+              default:
+                return this.#unsupported()
+            }
           // Camera settings
           case new URLPattern("/api/settings/camera", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -240,7 +273,7 @@ class Server {
                 await this.#set(log, ["settings", "netatmo", "client_id"], client_id)
                 await this.#set(log, ["settings", "netatmo", "client_secret"], client_secret)
                 await this.#set(log, ["settings", "netatmo", "refresh_token"], refresh_token)
-                await this.#netatmo(log)
+                await this.#netatmo_token(log)
                 await this.#netatmo_station(log)
               }
               case "GET":
@@ -285,7 +318,7 @@ class Server {
                 await this.#set(log, ["settings", "tapo", "api"], api)
                 if (!await this.#get(["settings", "tapo", "uuid"]))
                   await this.#set(log, ["settings", "tapo", "uuid"], crypto.randomUUID().toUpperCase())
-                await this.#tapo(log)
+                await this.#tapo_token(log)
                 await this.#tapo_devices(log)
               }
               case "GET":
@@ -337,7 +370,7 @@ class Server {
                 this.#authorize(user, {grant_admin:true})
                 const users = (await Array.fromAsync(this.#kv.list({prefix:["users"]}))).map((({value}) => value))
                 users.forEach(user => delete (user as rw).password)
-                return this.#json(users)
+                return this.#json(users.sort((a, b) => (a as user).username.localeCompare((b as user).username)))
               }
               default:
                 return this.#unsupported()
@@ -410,7 +443,7 @@ class Server {
               }
               case "GET":{
                 this.#authorize(user, {})
-                return this.#json((await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)))
+                return this.#json((await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)).sort((a, b) => (a as automation_target).name.localeCompare((b as automation_target).name)))
               }
               default:
                 return this.#unsupported()
@@ -556,8 +589,9 @@ class Server {
               case "DELETE":{
                 this.#authorize(user, {grant_data:true})
                 const storage = await this.#get(["settings", "camera", "storage"]) as string
-                if (storage)
-                await Deno.remove(resolve(storage, picture))
+                if (storage) {
+                  await Deno.remove(resolve(storage, picture))
+                }
                 return this.#json({})
               }
               case "GET":{
@@ -699,6 +733,46 @@ class Server {
 
   // ===================================================================================================================
 
+  /** Tick timeout handle. */
+  #tick_timeout = 0
+
+  /** Tick by refreshing data and states. */
+  async #tick() {
+    clearTimeout(this.#tick_timeout)
+    const tick = new Date().toISOString().slice(0, 16)
+    const last_tick = await this.#get(["settings", "tickrate", "last_tick"])
+    const log = this.#log.with({tick}).debug("ticking...")
+    if (last_tick)
+      log.debug("last tick was", last_tick)
+    for (const attempt of [0, 1]) {
+      try {
+        await this.#netatmo_data(log)
+        await this.#evaluate(log)
+        const targets = (await Array.fromAsync(this.#kv.list({prefix:["automation", "targets"]}))).map((({value}) => value)) as automation_target[]
+        await Promise.all(targets.map(target => this.#tapo_state(log, target).catch(() => null)))
+        break
+      }
+      catch (error) {
+        if ((attempt === 0)&&(`${error}`.includes("Access token expired"))) {
+          log.warn("netatmo access token has expired, will retry after renewal attempt...")
+          await this.#netatmo_token(log)
+          continue
+        }
+        throw error
+      }
+    }
+    await this.#set(this.#log, ["settings", "tickrate", "last_tick"], tick)
+    if (!await this.#get(["settings", "tickrate", "tickrate"])) {
+      log.warn("setting default tickrate as it was not set before")
+      await this.#set(this.#log, ["settings", "tickrate", "tickrate"], 60)
+    }
+    const delta = 1000 * (await this.#get(["settings", "tickrate", "tickrate"]) as number)
+    log.debug(`next tick in ${Number.parseInt(`${delta/1000}`)}s`, new Date(Date.now() + delta).toISOString().slice(0, 16))
+    this.#tick_timeout = setTimeout(() => this.#tick(), delta)
+  }
+
+  // ===================================================================================================================
+
   /** Read Key-value store entry. */
   async #get<T>(key:Deno.KvKey) {
     const {value} = await this.#kv.get<T>(key)
@@ -815,7 +889,7 @@ class Server {
   // ===================================================================================================================
 
   /** Refresh Netatmo token. */
-  async #netatmo(log:Logger) {
+  async #netatmo_token(log:Logger) {
     log.debug("netatmo token refreshing...")
     const headers = new Headers({"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
     const body = new URLSearchParams({
@@ -1048,7 +1122,7 @@ class Server {
   // ===================================================================================================================
 
   /** Authenticate user and create a new Tapo session. */
-  async #tapo(log:Logger) {
+  async #tapo_token(log:Logger) {
     log.debug("tapo token refreshing...")
     const {token} = await this.#tapo_api(log, {
       method: "login",
@@ -1093,33 +1167,55 @@ class Server {
   }
 
   /** Set Tapo device state. */
-  async #tapo_state(log:Logger, target:automation_target, status:string, duration:number) {
-    //TODO set/ state
-    log = log.with({name:target.name, mac:target.module}).info(`set status to ${status} for ${duration} seconds`)
-    log.error("NOT IMPLEMENTED !")
-    const username = await this.#get(["settings", "tapo", "username"]) as string
-    const password = await this.#get(["settings", "tapo", "password"]) as string
-    const ip = ""
-    let action = ""
-    switch (status) {
-      case "on":
-        action = ".turnOn()"
-        if (duration > 0) {
-          action = `.turnOnWithDelay(${duration})`
+  async #tapo_state(log:Logger, target:automation_target, status?:string, duration?:number) {
+    log = log.with({name:target.name, mac:target.module})
+    if (status)
+      log.info(`set status to ${status} for ${duration} seconds`)
+    switch (this.mode) {
+      case "server":{
+        //TODO(@lowlighter): call api to pi backend
+        return
+      }
+      case "full":
+      case "pi":{
+        // Prepare Tapo call
+        const username = await this.#get(["settings", "tapo", "username"]) as string
+        const password = await this.#get(["settings", "tapo", "password"]) as string
+        let action = ""
+        switch (status) {
+          case "on":
+            action = ".turnOn()"
+            duration ??= 0
+            if (duration > 0) {
+              action = `.turnOnWithDelay(${duration})`
+            }
+            break
+          case "off":
+            action = ".turnOff()"
         }
-        break
-      case "off":
-        action = ".turnOff()"
+        // Resolve IP address
+        const {stdout:arp} = await command("arp", ["--numeric"], {log, throw:true})
+        const ip = arp.split("\n").find(line => line.includes(target.module))?.split(" ")[0]
+        if (!ip) {
+          log.error("device not found in ARP table")
+          throw new Error(`Device ${target.module} not found in ARP table`)
+        }
+        log.debug("resolved to ip", ip)
+        // Execute Tapo call
+        const {stdout} = await command("python", ["-c", [
+          "import json",
+          "import PyP100",
+          `p100 = PyP100.P100("${ip}", "${username}", "${password}")`,
+          `p100${action}`,
+          `print(json.dumps(p100.getDeviceInfo()))`,
+        ].join(";")
+        ], {log, throw:true})
+        const state = JSON.parse(stdout)
+        log.debug(state)
+        //TODO(@lowlighter): store state in ["overview", target]
+        return
+      }
     }
-    const {stdout} = await command("python3", ["-c", [
-      "import json",
-      "import PyP100",
-      `p100 = PyP100.P100("${ip}", "${username}", "${password}")`,
-      `p100${action}`,
-      `print(json.dumps(p100.getDeviceInfo()))`,
-    ].join(";")
-    ], {throw:true})
-    console.log(JSON.parse(stdout)) //TODO: device_on
   }
 
   // ===================================================================================================================
@@ -1150,19 +1246,31 @@ class Server {
     return file
   }
 
+  /** Stream process handle. */
+  #stream_process = null as Nullable<Promise<unknown>>
+
   /** Stream Raspberry Pi camera. */
   #stream(port:number) {
-    //TODO: stream
-    command("python3", [fromFileUrl(import.meta.resolve("../python/video.py"))], {env:{STREAM_PORT:`${port}`}})
+    if (this.#stream_process)
+      return this.#stream_process
+    const {promise, resolve} = Promise.withResolvers<void>()
+    const log = this.#log.with({module:"picamera", port}).debug("streaming...")
+    this.#stream_process = promise
+    command("python", [fromFileUrl(import.meta.resolve("../server/python/video.py"))], {env:{STREAM_PORT:`${port}`}}).catch((reason) => {
+      log.error(reason)
+    }).finally(() => {
+      log.info("stream terminated")
+      resolve()
+      this.#stream_process = null
+    })
   }
 
   // ===================================================================================================================
 
   /** Evaluate automation rules. */
-  async evaluate() {
-    const logger = this.#log
+  async #evaluate(logger:Logger) {
     const [current = {}] = (await Array.fromAsync(this.#kv.list<record<Nullable<number>>>({start:["data", new Date().getTime() - 10* 30 * 60 * 1000], end:["data", new Date().getTime()]}, { limit: 1, reverse: true }))).map(({value}) => value)
-    //TODO current.time
+    Object.assign(current, {time:new Date().toISOString().slice(11, 16)})
     logger.debug("evaluating rules...", current)
     const rules = (await Array.fromAsync(this.#kv.list<automation_rule>({prefix:["automation", "rules"]}))).map(({value}) => value)
     rules.sort((a, b) => b.priority - a.priority)
@@ -1176,27 +1284,46 @@ class Server {
       let ok = rule.conditions.length > 0
       for (const {data, operator, value, delta} of rule.conditions) {
         let r = false
-        switch (operator) {
-          case "==":
-            if (data.endsWith("angle")) {
-              r = (Math.abs(current[data]! - value) <= delta)
-            }
-            else {
-              r = ((current[data]! >= value - delta) && (current[data]! <= value + delta))
-            }
-            break
-          case ">=":
-            r = (current[data]! >= value)
-            break
-          case "<=":
-            r = (current[data]! <= value)
-            break
-        }
-        if ((current[data] ?? null) !== null) {
-          log.debug(`${current[data]} ${operator} ${value} (± ${delta})`, r)
+        if (data === "time") {
+          const time = new Date(`1970-01-01T${value}:00.000Z`).getTime() / 1000 / 60
+          const now = new Date(`1970-01-01T${current.time}:00.000Z`).getTime() / 1000 / 60
+          const delta = (await this.#get(["settings", "tickrate", "tickrate"]) as number) / 60
+          switch (operator) {
+            case "==":
+              r = (now >= time) && ((now - time) <= delta)
+              break
+            case ">=":
+              r = (now >= time)
+              break
+            case "<=":
+              r = (now <= time)
+              break
+          }
+          log.debug(`${current.time} ${operator} ${value}${operator === "==" ? ` (- ${delta})` : ""}`, r)
         }
         else {
-          log.warn(`no data available for ${data}`)
+          switch (operator) {
+            case "==":
+              if (data.endsWith("angle")) {
+                r = (Math.abs(current[data]! - value) <= delta)
+              }
+              else {
+                r = ((current[data]! >= value - delta) && (current[data]! <= value + delta))
+              }
+              break
+            case ">=":
+              r = (current[data]! >= value)
+              break
+            case "<=":
+              r = (current[data]! <= value)
+              break
+          }
+          if ((current[data] ?? null) !== null) {
+            log.debug(`${current[data]} ${operator} ${value}${operator === "==" ? ` (± ${delta})` : ""}`, r)
+          }
+          else {
+            log.warn(`no data available for ${data}`)
+          }
         }
         ok = ok && r
       }
@@ -1235,13 +1362,18 @@ class Server {
       await this.#tapo_state(log, target, rule.action, rule.duration)
     if ((rule.target === "picamera")&&(rule.action === "on"))
       await this.#picture(log)
+    if (rule.duration) {
+      log.debug(`scheduling tick in ${(rule.duration + 5)} seconds`)
+      setTimeout(() => this.#tick(), (rule.duration + 5) * 1000)
+    }
   }
+
+  // ===================================================================================================================
+
+  //async #history_push(log:Logger, user:Nullable<Pick<user, "username">>, action:string, details?:record<unknown>) {
 
 }
 
 if (import.meta.main) {
-  const server = new Server()
-  server.serve()
-  await server.ready
-  console.log(await server.evaluate())
+  await new Server().ready
 }

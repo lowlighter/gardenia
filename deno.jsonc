@@ -2,8 +2,8 @@
   "repository": "https://github.com/lowlighter/gardenia",
   "version": "0.1.0",
   "tasks": {
-    "run": "deno run --allow-read --allow-write=. --allow-net app/server/server.ts",
-    "dev": "deno run --allow-read --allow-write=. --allow-net --watch app/server/server.ts"
+    "run": "deno run --allow-read --allow-write=. --allow-run=arp --allow-net app/server/server.ts",
+    "dev": "deno run --allow-read --allow-write=. --allow-run=arp --allow-net --watch app/server/server.ts"
   },
   "imports": {
     "std/": "https://deno.land/std@0.205.0/"

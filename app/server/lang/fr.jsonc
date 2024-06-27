@@ -32,6 +32,15 @@
   "settings_visibility_public_modules_desc": "L'état des différents modules de la serre connectée devraient être accessibles même sans être connecté.",
   "settings_visibility_button": "Enregistrer les paramètres",
 
+  // Tickrate settings
+  "settings_tickrate": "Configuration du taux de rafraîchissement des données",
+  "settings_tickrate_desc": "Cette section permet de configurer le taux de rafraîchissement des données collectées par l'application.<br>Un taux de rafraîchissement plus élevé permettra d'avoir des données plus récentes, mais cela peut également augmenter la charge du serveur.",
+  "settings_tickrate_tickrate": "Taux de rafraîchissement des données",
+  "settings_tickrate_tickrate_desc": "Le serveur collectera les données Netatmo, évaluera les règles d'automatisation et synchronisera les prises connectées Tapo à ce taux de rafraîchissement (en secondes).<br> Notez que même avec un taux de rafraîchissement élevé, la collecte des données Netatmo reste limitée par ce qui est disponible sur les serveurs Netatmo.",
+  "settings_tickrate_last_tick": "Dernière rafraîchissement des données",
+  "settings_tickrate_last_tick_desc": "Date du dernier rafraîchissement des données par le serveur.",
+  "settings_tickrate_button": "Enregistrer les paramètres",
+
   // Cemara settings
   "settings_camera": "Configuration de la caméra",
   "settings_camera_desc": "Cette section permet de configurer les paramètres de la caméra attachée au Raspberry Pi.",
@@ -197,7 +206,7 @@
   "automation_rule_duration": "Durée d'activation",
   "automation_rule_duration_desc": "La durée d'activation (en nombre de secondes). La cible sera automatiquement éteinte après la durée spécifiée. Si celle-ci est nulle, la cible restera allumée indéfiniment.",
   "automation_rule_conditions": "Conditions",
-  "automation_rule_conditions_desc": "Cette règle se déclanchera si toutes les conditions définies ci-dessous sont remplies.",
+  "automation_rule_conditions_desc": "Cette règle se déclanchera si toutes les conditions définies ci-dessous sont remplies.<br>Attention, les règles temporelles sont évaluées au format UTC.",
   "automation_rule_hits": "Nombre de déclenchements",
   "automation_rule_hits_desc": "Le nombre de déclenchements de la règle d'automatisation depuis sa création.",
   "automation_rule_last_hit": "Dernier déclenchement",
@@ -237,5 +246,6 @@
   "no": "Non",
   "on": "Allumé",
   "off": "Éteint",
-  "unknown": "Inconnu"
+  "unknown": "Inconnu",
+  "utc_time": "Heure UTC"
 }

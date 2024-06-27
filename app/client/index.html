@@ -29,6 +29,11 @@
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><path d="M0 2.75C0 1.784.784 1 1.75 1h12.5c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25Zm1.75-.25a.25.25 0 0 0-.25.25v10.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25ZM7.25 8a.749.749 0 0 1-.22.53l-2.25 2.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L5.44 8 3.72 6.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l2.25 2.25c.141.14.22.331.22.53Zm1.5 1.5h3a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1 0-1.5Z"></path></svg>
             </li>
           </template>
+          <template x-if="status === 'configured' && (user.logged || settings.visibility.public_history)">
+            <li @click="tab = 'history'" :class="{selected:tab === 'history'}">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><path d="M5 8.25a.75.75 0 0 1 .75-.75h4a.75.75 0 0 1 0 1.5h-4A.75.75 0 0 1 5 8.25ZM4 10.5A.75.75 0 0 0 4 12h4a.75.75 0 0 0 0-1.5H4Z"></path><path d="M13-.005c1.654 0 3 1.328 3 3 0 .982-.338 1.933-.783 2.818-.443.879-1.028 1.758-1.582 2.588l-.011.017c-.568.853-1.104 1.659-1.501 2.446-.398.789-.623 1.494-.623 2.136a1.5 1.5 0 1 0 2.333-1.248.75.75 0 0 1 .834-1.246A3 3 0 0 1 13 16H3a3 3 0 0 1-3-3c0-1.582.891-3.135 1.777-4.506.209-.322.418-.637.623-.946.473-.709.923-1.386 1.287-2.048H2.51c-.576 0-1.381-.133-1.907-.783A2.68 2.68 0 0 1 0 2.995a3 3 0 0 1 3-3Zm0 1.5a1.5 1.5 0 0 0-1.5 1.5c0 .476.223.834.667 1.132A.75.75 0 0 1 11.75 5.5H5.368c-.467 1.003-1.141 2.015-1.773 2.963-.192.289-.381.571-.558.845C2.13 10.711 1.5 11.916 1.5 13A1.5 1.5 0 0 0 3 14.5h7.401A2.989 2.989 0 0 1 10 13c0-.979.338-1.928.784-2.812.441-.874 1.023-1.748 1.575-2.576l.017-.026c.568-.853 1.103-1.658 1.501-2.448.398-.79.623-1.497.623-2.143 0-.838-.669-1.5-1.5-1.5Zm-10 0a1.5 1.5 0 0 0-1.5 1.5c0 .321.1.569.27.778.097.12.325.227.74.227h7.674A2.737 2.737 0 0 1 10 2.995c0-.546.146-1.059.401-1.5Z"></path></svg>
+            </li>
+          </template>
           <template x-if="status === 'configured' && user.logged">
             <li @click="tab = 'user'" :class="{selected:tab === 'user'}">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><path d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.004 6.004 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"></path></svg>
@@ -479,7 +484,8 @@
                 </template>
                 <div>
                   <span x-html="lang.automation_rule_conditions"></span><br>
-                  <small x-html="lang.automation_rule_conditions_desc" class="muted"></small><br>
+                  <small x-html="lang.automation_rule_conditions_desc" class="muted"></small>
+                  (<small class="muted"><span x-text="lang.utc_time"></span> <code x-text="new Date().toISOString().substring(11, 16)"></code></small>).<br>
                   <template x-for="(condition, i) in data.conditions">
                     <div :key="`${i}+${condition.data}+${condition.operator}`" class="flex align-center">
                       <select x-model="condition.data" class="mr-.5">
@@ -558,6 +564,21 @@
               <button type="submit" @click="Object.assign(data, await api($event, endpoint, {method:'PUT', body:JSON.stringify(data)}))" x-text="lang[`${section}_button`]"></button>
             </footer>
           </form>
+          <!-- Tickrate -->
+          <form x-data="{section:'settings_tickrate', endpoint:'/api/settings/tickrate', data:settings.tickrate}">
+            <h2 x-html="lang[section]"></h2>
+            <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'tickrate', type:'number'}, {name:'last_tick', type:'datetime-local', disabled:true}]">
+              <label :key="name">
+                <span x-html="lang[`${section}_${name}`]"></span><br>
+                <small x-html="lang[`${section}_${name}_desc`]"></small>
+                <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
+              </label>
+            </template>
+            <footer>
+              <button type="submit" @click="Object.assign(data, await api($event, endpoint, {method:'PUT', body:JSON.stringify(data)}))" x-text="lang[`${section}_button`]"></button>
+            </footer>
+          </form>
           <!-- Camera -->
           <form x-data="{section:'settings_camera', endpoint:'/api/settings/camera', data:settings.camera}">
             <h2 x-html="lang[section]"></h2>
@@ -594,7 +615,7 @@
                 <div class="flash muted" x-html="lang[`${section}_empty`]"></div>
               </template>
               <template x-for="module in modules">
-                <article :key="module.mac">
+                <article :key="module.mac" class="mt-1">
                   <header x-text="lang[`${section}_type_${module.type}_name`]"></header>
                   <template x-for="({name, type}) in [{name:'battery'}, {name:'mac'}, {name:'updated', type:'datetime-local'}]">
                     <label :key="name">
@@ -648,7 +669,7 @@
                 <div class="flash muted" x-html="lang[`${section}_empty`]"></div>
               </template>
               <template x-for="module in modules">
-                <article :key="module.mac">
+                <article :key="module.mac" class="mt-1">
                   <header x-text="module.name"></header>
                   <template x-for="({name, type}) in [{name:'mac'}, {name:'model'}, {name:'firmware'}]">
                     <label :key="name">

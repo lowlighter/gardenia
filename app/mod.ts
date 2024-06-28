@@ -15,6 +15,11 @@ if (import.meta.main) {
     loglevel: is.union([is.number(), is.string()]).optional(),
   }).parse(parseArgs(Deno.args, {}))
   const server = await new Server(args).ready
-  Deno.addSignalListener("SIGINT", () => server.close())
-  Deno.addSignalListener("SIGBREAK", () => server.close())
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    try {
+      Deno.addSignalListener(signal, () => server.close())
+    } catch (error) {
+      console.warn(error)
+    }
+  }
 }

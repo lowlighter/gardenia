@@ -14,5 +14,7 @@ if (import.meta.main) {
     kv: is.string().optional(),
     loglevel: is.union([is.number(), is.string()]).optional(),
   }).parse(parseArgs(Deno.args, {}))
-  await new Server(args).ready
+  const server = await new Server(args).ready
+  Deno.addSignalListener("SIGINT", () => server.close())
+  Deno.addSignalListener("SIGBREAK", () => server.close())
 }

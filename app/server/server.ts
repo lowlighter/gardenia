@@ -989,6 +989,14 @@ export class Server {
     await promise
   }
 
+  /** Close server. */
+  close() {
+    this.#log.debug("closing server")
+    clearTimeout(this.#tick_timeout)
+    this.#kv.close()
+    this.#log.info("closed server")
+  }
+
   // ===================================================================================================================
 
   /** Tick timeout handle. */

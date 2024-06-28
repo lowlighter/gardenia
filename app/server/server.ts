@@ -128,10 +128,13 @@ export class Server {
 
   // ===================================================================================================================
 
+  /** Server listener. */
+  #server = null as Nullable<Deno.HttpServer>
+
   /** Serve HTTP requests. */
   async #serve(port: number) {
     const { promise, resolve: ready } = Promise.withResolvers<void>()
-    Deno.serve({ port, onListen: ({ hostname, port }) => (this.#log.info(`server listening on ${hostname}:${port}`), ready()) }, async (request) => {
+    this.#server = Deno.serve({ port, onListen: ({ hostname, port }) => (this.#log.info(`server listening on ${hostname}:${port}`), ready()) }, async (request) => {
       const url = new URL(request.url)
       const { gardenia_session: session } = getCookies(request.headers)
       let log = this.#log.with({ session: session?.slice(0, 8) ?? null, method: request.method, url: url.pathname }).debug("processing request")
@@ -990,8 +993,11 @@ export class Server {
   }
 
   /** Close server. */
-  close() {
+  async close() {
     this.#log.debug("closing server")
+    this.#stream_process?.kill("SIGKILL")
+    await this.#stream_process?.status
+    await this.#server?.shutdown()
     clearTimeout(this.#tick_timeout)
     this.#kv.close()
     this.#log.info("closed server")
@@ -1583,23 +1589,21 @@ export class Server {
   }
 
   /** Stream process handle. */
-  #stream_process = null as Nullable<Promise<unknown>>
+  #stream_process = null as Nullable<Deno.ChildProcess>
 
   /** Stream Raspberry Pi camera. */
   #stream(port: number) {
     if (this.#stream_process) {
-      return this.#stream_process
+      return
     }
-    const { promise, resolve } = Promise.withResolvers<void>()
-    const log = this.#log.with({ module: "picamera", port }).debug("streaming...")
-    this.#stream_process = promise
-    command("python", [fromFileUrl(import.meta.resolve("../server/python/video.py"))], { env: { STREAM_PORT: `${port}` } }).catch((error) => {
-      log.error(error)
-    }).finally(() => {
-      log.info("stream terminated")
-      resolve()
-      this.#stream_process = null
+    this.#log.with({ module: "picamera", port }).debug("streaming...")
+    const command = new Deno.Command("python", {
+      args: [fromFileUrl(import.meta.resolve("../server/python/video.py"))],
+      env: {
+        STREAM_PORT: `${port}`,
+      },
     })
+    this.#stream_process = command.spawn()
   }
 
   // ===================================================================================================================

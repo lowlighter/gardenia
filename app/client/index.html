@@ -95,7 +95,7 @@
                 <template x-if="(source !== '/camera')&&(user.grant_admin || user.grant_data)">
                   <form class="mt-.5">
                     <footer>
-                      <button class="danger" @click="await api($event, source, {callback:() => refresh_overview(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
+                      <button class="danger" @click="await api($event, source, {callback:() => refresh_pictures(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
                     </footer>
                   </form>
                 </template>
@@ -175,7 +175,7 @@
                           <template x-if="target.module === 'picamera'">
                             <form class="mt-.5">
                               <footer>
-                                <button class="active" @click="await api($event, '/api/pictures', {callback:() => refresh_overview(), method:'POST'})" type="submit" x-text="lang.manual_action_picture"></button>
+                                <button class="active" @click="await api($event, '/api/pictures', {callback:() => refresh_pictures(), method:'POST'})" type="submit" x-text="lang.manual_action_picture"></button>
                               </footer>
                             </form>
                           </template>

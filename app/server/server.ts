@@ -130,7 +130,7 @@ export class Server {
   readonly #public = {} as record<string>
 
   /** Server version. */
-  readonly version = "2.2.1" as const
+  readonly version = "2.2.2" as const
 
   // ===================================================================================================================
 
@@ -912,7 +912,6 @@ export class Server {
                       details.rule = "@user"
                     }
                   }
-                  console.log(target)
                 }))
                 return this.#json({ targets })
               }
@@ -922,6 +921,14 @@ export class Server {
           // Data and graphs
           case new URLPattern("/api/data", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
+              case "DELETE": {
+                this.#authorize(user, { grant_data: true })
+                await this.#history_push(log, user, "delete_data")
+                for await (const { key } of this.#kv.list({ prefix: ["data"] })) {
+                  await this.#kv.delete(key)
+                }
+                return this.#json({})
+              }
               case "PUT": {
                 this.#authorize(user, { grant_data: true })
                 const { t } = await this.#check(request, {
@@ -1007,7 +1014,7 @@ export class Server {
               case "GET": {
                 try {
                   this.#authorize(user, "public_camera")
-                  return await fetch(`${await this.#get(["settings", "camera", "url"])}`)
+                  return await fetch(`${await this.#get(["settings", "camera", "url"])}/stream`)
                 } catch {
                   return serveFile(request, fromFileUrl(import.meta.resolve("../client/camera_offline.png")))
                 }
@@ -1470,7 +1477,9 @@ export class Server {
     const [station] = modules
     const date = new Date(t)
     date.setMinutes(date.getMinutes() - 30)
-    log = log.with({ station: station.mac, t: Math.floor(date.getTime() / 1000) })
+    const begin = Math.floor(date.getTime() / 1000)
+    const end = begin + 1024 * 30 * 60
+    log = log.with({ station: station.mac, begin, end })
     log.debug("netatmo data fetching...")
     const errors = []
     for (const module of modules) {
@@ -1479,7 +1488,9 @@ export class Server {
         device_id: station.mac,
         scale: "30min",
         optimize: "false",
-        date_begin: `${Math.floor(date.getTime() / 1000)}`,
+        date_begin: `${begin}`,
+        date_end: `${end}`,
+        limit: "1024",
         type: this.netatmo_data[module.type].data.join(","),
       })
       if (module.type !== "station") {
@@ -1499,6 +1510,10 @@ export class Server {
     }
     if (errors.length) {
       throw new Error(errors.map(({ message }) => message).join("\n"))
+    }
+    if (end < Date.now() / 1000) {
+      log.debug(`reached limit in a single request, fetching next batch...`)
+      return await this.#netatmo_data(log, new Date(end * 1000))
     }
     return true
   }
@@ -1580,7 +1595,7 @@ export class Server {
     to.setHours(23, 59, 59, 999)
     log = log.with({ from: from.toISOString().slice(0, 16), to: to.toISOString().slice(0, 16) }).debug("data loading...")
     const data = await Array.fromAsync(this.#kv.list<record<Nullable<number>>>({ start: ["data", from.getTime()], end: ["data", to.getTime()] }))
-    const values = data.map(({ value }) => value)
+    const values = data.map(({ key, value }) => ({ t: key.at(-1)!, date: new Date(key.at(-1)!), ...value }))
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
     const result = {
       time: Date.now(),

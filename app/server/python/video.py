@@ -42,7 +42,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
       return
 
     # Stream
-    if self.path == '/':
+    if self.path == '/stream':
       self.send_response(200)
       self.send_header('Age', 0)
       self.send_header('Cache-Control', 'no-cache, private')

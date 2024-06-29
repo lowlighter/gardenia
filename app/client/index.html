@@ -858,8 +858,12 @@
             <h2 x-html="lang[section]"></h2>
             <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
             <form class="bd-muted">
-              <small class="muted" x-text="lang[`${section}_force_tick_desc`]"></small><br>
+              <small class="muted" x-html="lang[`${section}_force_tick_desc`]"></small><br>
               <button @click="await api($event, '/api/tick', {method:'POST'})" x-text="lang[`${section}_force_tick`]"></button>
+            </form>
+            <form class="bd-muted">
+              <small class="muted" x-html="lang[`${section}_delete_data_desc`]"></small><br>
+              <button class="attention" @click="await api($event, '/api/data', {method:'DELETE'})" x-text="lang[`${section}_delete_data`]"></button>
             </form>
             <form class="bd-muted">
               <small class="muted" x-html="lang[`${section}_export_desc`]"></small><br>
@@ -874,7 +878,7 @@
               <button class="attention" @click="await api($event, '/api/import', {callback:() => location.reload(), method:'POST', body:document.querySelector('#config-import')?.files[0]})" x-text="lang[`${section}_import`]"></button>
             </form>
             <form class="bd-muted">
-              <small class="muted" x-text="lang[`${section}_exit_desc`]"></small><br>
+              <small class="muted" x-html="lang[`${section}_exit_desc`]"></small><br>
               <button class="danger" @click="await api($event, '/api/exit', {callback:() => { status = 'exited'; tab = '' }, method:'POST'})" x-text="lang[`${section}_exit`]"></button>
             </form>
           </form>

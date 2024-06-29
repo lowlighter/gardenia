@@ -1,5 +1,5 @@
 /* Matcha overrides */
-body > header nav menu svg {
+body > header nav menu svg, body > footer nav menu svg {
   fill: currentColor;
 }
 

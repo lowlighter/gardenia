@@ -11,6 +11,7 @@
       "jsr:@std/assert@^0.225.2": "jsr:@std/assert@0.225.3",
       "jsr:@std/assert@^0.225.3": "jsr:@std/assert@0.225.3",
       "jsr:@std/assert@^0.226.0": "jsr:@std/assert@0.226.0",
+      "jsr:@std/async": "jsr:@std/async@0.224.2",
       "jsr:@std/async@0.224.1": "jsr:@std/async@0.224.1",
       "jsr:@std/async@^0.224.1": "jsr:@std/async@0.224.1",
       "jsr:@std/async@^0.224.2": "jsr:@std/async@0.224.2",

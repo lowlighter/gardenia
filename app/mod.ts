@@ -10,7 +10,7 @@ if (import.meta.main) {
       server: is.number().default(8080),
       picamera: is.number().default(8081),
     }).default(() => ({})),
-    mode: is.enum(["all", "app", "ctl"]),
+    mode: is.enum(["app", "ctl"]),
     kv: is.string().optional(),
     loglevel: is.union([is.number(), is.string()]).optional(),
   }).parse(parseArgs(Deno.args, {}))

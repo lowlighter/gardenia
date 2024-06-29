@@ -12,6 +12,7 @@ import { Cookie, getCookies, setCookie } from "jsr:@std/http/cookie"
 import { encodeHex } from "jsr:@std/encoding/hex"
 import { ensureDir, expandGlob } from "jsr:@std/fs"
 import { command } from "jsr:@libs/run@1"
+import { delay } from "jsr:@std/async/delay"
 
 /** User. */
 type user = {
@@ -53,7 +54,7 @@ type automation_rule = {
  */
 export class Server {
   /** Constructor */
-  constructor({ ports, mode, loglevel, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "all" | "app" | "ctl"; loglevel?: number | string; kv?: string }) {
+  constructor({ ports, mode, loglevel, kv = ".kv" }: { ports: { server: number; picamera: number }; mode: "app" | "ctl"; loglevel?: number | string; kv?: string }) {
     const { promise, resolve, reject } = Promise.withResolvers<this>()
     this.ready = promise
     this.#log = new Logger({ level: loglevel as number })
@@ -71,7 +72,7 @@ export class Server {
         ;(this as rw).#lang = Object.fromEntries((await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`./lang/*.jsonc`)))))
           .map(({ path, name }) => [name.replace(".jsonc", ""), JSONC.parse(Deno.readTextFileSync(path))]))
         ;(this as rw).#log.info("loaded languages", Object.keys(this.#lang))
-        if ((this.mode === "all") || (this.mode === "app")) {
+        if (this.mode === "app") {
           ;(this as rw).#log.debug("loading icons")
           ;(this as rw).#icons = (await Array.fromAsync(expandGlob(fromFileUrl(import.meta.resolve(`../client/svg/*.svg`)))))
             .map(({ name }) => name.replace(".svg", ""))
@@ -85,11 +86,11 @@ export class Server {
           }
           await this.#picture_list()
         }
-        if ((this.mode === "all") || (this.mode === "ctl")) {
+        if (this.mode === "ctl") {
           this.#stream(ports.picamera)
         }
         await this.#serve(ports.server)
-        if ((this.mode === "all") || (this.mode === "app")) {
+        if (this.mode === "app") {
           await this.#tick()
         }
         resolve(this)
@@ -106,7 +107,7 @@ export class Server {
   readonly #log
 
   /** Server mode. */
-  readonly mode = "all" as "all" | "app" | "ctl"
+  readonly mode = "app" as "app" | "ctl"
 
   /** Key-value store */
   readonly #kv = null as unknown as Deno.Kv
@@ -134,10 +135,11 @@ export class Server {
   /** Serve HTTP requests. */
   async #serve(port: number) {
     const { promise, resolve: ready } = Promise.withResolvers<void>()
-    this.#server = Deno.serve({ port, onListen: ({ hostname, port }) => (this.#log.info(`server listening on ${hostname}:${port}`), ready()) }, async (request) => {
+    this.#server = Deno.serve({ port, onListen: ({ hostname, port }) => (this.#log.info(`server listening on ${hostname}:${port}`), ready()) }, async (request, info) => {
       const url = new URL(request.url)
+      const ip = info.remoteAddr.hostname
       const { gardenia_session: session } = getCookies(request.headers)
-      let log = this.#log.with({ session: session?.slice(0, 8) ?? null, method: request.method, url: url.pathname }).debug("processing request")
+      let log = this.#log.with({ ip, session: session?.slice(0, 8) ?? null, method: request.method, url: url.pathname }).debug("processing request")
       const user = session ? await this.#session(log, session).catch(() => null) : null
       if (user) {
         log = log.with({ username: user.username })
@@ -191,18 +193,27 @@ export class Server {
                 default:
                   return this.#unsupported()
               }
-            // Tapo state
-            case new URLPattern("/.api/tapo_state", url.origin).test(url.href.replace(url.search, "")): {
-              switch (request.method) {
-                case "POST": {
-                  const { token, args: { target, status, duration, credentials } } = await this.#check(request, { token: is.string(), args: is.any() })
-                  if (await this.#get(["settings", "control", "token"]) !== token) {
+            // Control API
+            case new URLPattern("/.api/:action", url.origin).test(url.href.replace(url.search, "")): {
+              const action = decodeURIComponent(url.pathname.split("/").at(-1) as string)
+              if (request.method !== "POST") {
+                return this.#unsupported()
+              }
+              const { token, args } = await this.#check(request, { token: is.string(), args: is.any() })
+              const allowed = await this.#get(["settings", "control", "token"]) === token
+              switch (action) {
+                case "test": {
+                  return this.#json({ ok: allowed })
+                }
+                case "tapo_state": {
+                  if (!allowed) {
                     return this.#json({ error: Status.Forbidden }, { status: Status.Forbidden })
                   }
+                  const { target, status, duration, credentials } = args
                   return this.#json(await this.#tapo_state(log, target, status, duration, credentials))
                 }
                 default:
-                  return this.#unsupported()
+                  return this.#json({ error: StatusText[Status.NotFound] }, { status: Status.NotFound })
               }
             }
             // Index
@@ -222,6 +233,20 @@ export class Server {
           }
         }
         switch (true) {
+          // Ping (control)
+          case new URLPattern("/ping/status", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET": {
+                this.#authorize(user, null)
+                return this.#json({
+                  internet: await this.#get(["ping", "internet"]),
+                  control: await this.#get(["ping", "control"]),
+                  camera: await this.#get(["ping", "camera"]),
+                })
+              }
+              default:
+                return this.#unsupported()
+            }
           // Icons
           case new URLPattern("/icons", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -247,8 +272,8 @@ export class Server {
                 this.#authorize(user, { grant_admin: true })
                 const { instance_name } = await this.#check(request, {
                   instance_name: is.string().min(1).max(255),
-                  version: is.literal(this.version), // Read-only
-                  mode: is.literal(this.mode), // Read-only
+                  version: is.literal(this.version).optional(), // Read-only
+                  mode: is.literal(this.mode).optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "meta", "instance_name"], instance_name)
                 await this.#set(log, ["settings", "meta", "instance_name"], instance_name)
@@ -307,7 +332,7 @@ export class Server {
                 this.#authorize(user, { grant_admin: true })
                 const { tickrate } = await this.#check(request, {
                   tickrate: is.coerce.number().min(60),
-                  last_tick: is.string().nullable(), // Read-only
+                  last_tick: is.string().nullable().optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "tickrate", "tickrate"], tickrate)
                 await this.#set(log, ["settings", "tickrate", "tickrate"], tickrate)
@@ -344,6 +369,22 @@ export class Server {
               default:
                 return this.#unsupported()
             }
+          case new URLPattern("/api/settings/control/test", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET": {
+                this.#authorize(user, { grant_admin: true })
+                const url = await this.#get(["settings", "control", "url"]) as string
+                const token = await this.#get(["settings", "control", "token"]) as string
+                try {
+                  const response = await fetch(`${url}/.api/test`, { method: "POST", body: JSON.stringify({ token }), headers: { "Content-Type": "application/json" } })
+                  return this.#json(await response.json())
+                } catch (error) {
+                  return this.#json({ error: error.message })
+                }
+              }
+              default:
+                return this.#unsupported()
+            }
           // Camera settings
           case new URLPattern("/api/settings/camera", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -367,6 +408,21 @@ export class Server {
               default:
                 return this.#unsupported()
             }
+          case new URLPattern("/api/settings/camera/test", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET": {
+                this.#authorize(user, { grant_admin: true })
+                const url = await this.#get(["settings", "camera", "url"]) as string
+                try {
+                  const response = await fetch(`${url}/ping`)
+                  return this.#json(await response.json())
+                } catch (error) {
+                  return this.#json({ error: error.message })
+                }
+              }
+              default:
+                return this.#unsupported()
+            }
           // Netatmo settings
           case new URLPattern("/api/settings/netatmo", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -376,9 +432,9 @@ export class Server {
                   client_id: is.string().min(1),
                   client_secret: is.string().min(1),
                   refresh_token: is.string().min(1),
-                  access_token: is.string().nullable(), // Read-only
-                  access_token_expiration: is.string().nullable(), // Read-only
-                  user_mail: is.string().nullable(), // Read-only
+                  access_token: is.string().nullable().optional(), // Read-only
+                  access_token_expiration: is.string().nullable().optional(), // Read-only
+                  user_mail: is.string().nullable().optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "netatmo", "client_id"], client_id)
                 await this.#set(log, ["settings", "netatmo", "client_id"], client_id)
@@ -424,8 +480,8 @@ export class Server {
                   username: is.string().min(1),
                   password: is.string().min(1),
                   api: is.string().url().min(1),
-                  uuid: is.string().nullable(), // Read-only
-                  token: is.string().nullable(), // Read-only
+                  uuid: is.string().nullable().optional(), // Read-only
+                  token: is.string().nullable().optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "tapo", "username"], username)
                 await this.#set(log, ["settings", "tapo", "username"], username)
@@ -478,7 +534,7 @@ export class Server {
               case "GET":
                 this.#authorize(user, { grant_admin: true })
                 return this.#json({
-                  content: await this.#get(["settings", "notes", "content"]),
+                  content: await this.#get(["settings", "notes", "content"]) ?? "",
                 })
               default:
                 return this.#unsupported()
@@ -494,7 +550,7 @@ export class Server {
                   grant_admin: is.boolean().default(false),
                   grant_automation: is.boolean().default(false),
                   grant_data: is.boolean().default(false),
-                  logged: is.string().nullable(), // Read-only
+                  logged: is.string().nullable().optional(), // Read-only
                 })
                 if (await this.#get(["users", username])) {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
@@ -536,11 +592,14 @@ export class Server {
                 const { password, grant_admin, grant_automation, grant_data } = await this.#check(request, {
                   username: is.string().min(1).max(64), // Read-only
                   password: is.union([is.string().min(12).max(255), is.string().min(0).max(0)]).optional(),
-                  grant_admin: is.boolean().optional(), // Read-only if not admin
-                  grant_automation: is.boolean().optional(), // Read-only if not admin
-                  grant_data: is.boolean().optional(), // Read-only if not admin
-                  logged: is.string().nullable(), // Read-only
+                  grant_admin: is.boolean(), // Read-only if not admin
+                  grant_automation: is.boolean(), // Read-only if not admin
+                  grant_data: is.boolean(), // Read-only if not admin
+                  logged: is.string().nullable().optional(), // Read-only
                 })
+                if ((await this.#get(["settings", "root"]) === username)&&(!grant_admin)) {
+                  return this.#json({ error: "This user cannot be demoted" }, { status: Status.NotAcceptable })
+                }
                 if (password) {
                   log.info("changing user password")
                   userdata.password = await this.#hash(password)
@@ -648,18 +707,26 @@ export class Server {
                 this.#authorize(user, { grant_automation: true })
                 const { name, target, priority, action, duration, conditions } = await this.#check(request, {
                   name: is.string().min(1).max(64),
-                  hits: is.number(), // Read-only
-                  last_hit: is.string().nullable(), // Read-only
+                  hits: is.number().nullable().optional(), // Read-only
+                  last_hit: is.string().nullable().optional(), // Read-only
                   target: is.string().min(1).max(64),
                   priority: is.coerce.number().min(0),
                   action: is.enum(["on", "off"]),
                   duration: is.coerce.number().min(0),
-                  conditions: is.array(is.object({
-                    data: is.string().min(0).max(64),
-                    operator: is.enum(["==", "!=", ">", ">=", "<", "<="]),
-                    value: is.union([is.string().regex(/^\d{2}:\d{2}$/), is.coerce.number()]),
-                    delta: is.coerce.number(),
-                  })).min(1),
+                  conditions: is.array(is.union([
+                    is.object({
+                      data: is.literal("time"),
+                      operator: is.enum(["==", ">=", "<="]),
+                      value: is.string().regex(/^\d{2}:\d{2}$/),
+                      delta: is.coerce.number(),
+                    }),
+                    is.object({
+                      data: is.enum(['temperature', 'temperature_out', 'humidity', 'humidity_out', 'co2', 'pressure', 'noise', 'rain', 'windstrength', 'guststrength', 'windangle', 'gustangle']),
+                      operator: is.enum(["==", ">=", "<="]),
+                      value: is.coerce.number(),
+                      delta: is.coerce.number(),
+                    })
+                  ])).min(1),
                 })
                 if (await this.#get(["automation", "rules", name])) {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
@@ -695,8 +762,8 @@ export class Server {
                 this.#authorize(user, { grant_automation: true })
                 const { target, priority, action, duration, conditions } = await this.#check(request, {
                   name: is.string().min(1).max(64), // Read-only
-                  hits: is.number(), // Read-only
-                  last_hit: is.string().nullable(), // Read-only
+                  hits: is.number().nullable().optional(), // Read-only
+                  last_hit: is.string().nullable().optional(), // Read-only
                   target: is.string().min(1).max(64),
                   priority: is.coerce.number().min(0),
                   action: is.enum(["on", "off"]),
@@ -783,7 +850,7 @@ export class Server {
               case "GET": {
                 this.#authorize(user, "public_modules")
                 const targets = (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value) as automation_target[]
-                const tapo = await this.#get(["settings", "tapo", "modules"]) as { name: string; mac: string }[]
+                const tapo = await this.#get(["settings", "tapo", "modules"]) as { name: string; mac: string }[] ?? []
                 await Promise.allSettled(targets.map(async (target) => {
                   const plug = tapo.find(({ mac }) => target.module === mac)
                   if (plug) {
@@ -792,11 +859,18 @@ export class Server {
                   Object.assign(target, { status: "unknown", status_details: null })
                   Object.assign(target, await this.#get(["overview", target.module]))
                   if (target.module === "picamera") {
-                    Object.assign(target, { status: "on" })
+                    Object.assign(target, { status: await this.#get(["ping", "camera"]) ? "on" : "off" })
                   }
                   if (!user) {
                     target.module = crypto.randomUUID()
                   }
+                  if (((target as record).status_details)&&(!user)) {
+                    const details = (target as record).status_details as record
+                    if (`${details.rule}`.startsWith("@")) {
+                      details.rule = "@user"
+                    }
+                  }
+                  console.log(target)
                 }))
                 return this.#json({ targets })
               }
@@ -812,7 +886,9 @@ export class Server {
                   t: is.coerce.date(),
                 })
                 await this.#history_push(log, user, "update_data", { t: t.toISOString().slice(0, 16) })
-                await this.#netatmo_data(log, t)
+                if (!await this.#netatmo_data(log, t)) {
+                  return this.#json({ error: "Cannot fetch Netatmo data in current state" }, { status: Status.NotAcceptable })
+                }
               }
               case "GET": {
                 this.#authorize(user, "public_data")
@@ -858,7 +934,7 @@ export class Server {
                 if (!user?.grant_admin) {
                   entries.forEach((entry) => {
                     if ((entry.action === "action") && (`${entry.details.rule}`.startsWith("@"))) {
-                      entry.details.rule = "@"
+                      entry.details.rule = "@user"
                     }
                   })
                 }
@@ -892,10 +968,10 @@ export class Server {
                 const { username, password } = await this.#check(request, {
                   username: is.string(),
                   password: is.string(),
-                  logged: is.string().nullable(), // Read-only
-                  grant_admin: is.boolean().nullable(), // Read-only
-                  grant_automation: is.boolean().nullable(), // Read-only
-                  grant_data: is.boolean().nullable(), // Read-only
+                  logged: is.string().nullable().optional(), // Read-only
+                  grant_admin: is.boolean(), // Read-only
+                  grant_automation: is.boolean(), // Read-only
+                  grant_data: is.boolean(), // Read-only
                 })
                 return this.#login(log, { username, password })
               }
@@ -1017,6 +1093,7 @@ export class Server {
     if (last_tick) {
       log.debug("last tick was", last_tick)
     }
+    await this.#ping()
     for (const attempt of [0, 1]) {
       try {
         await this.#netatmo_data(log)
@@ -1068,6 +1145,32 @@ export class Server {
   /** Hash text. */
   async #hash(text: string) {
     return encodeHex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)))
+  }
+
+  // ===================================================================================================================
+
+  /** Check if components are reachable. */
+  async #ping() {
+    for (
+      const { name, url } of [
+        { name: "internet", url: "https://example.com" },
+        { name: "control", url: await this.#get(["settings", "control", "url"]) },
+        { name: "camera", url: await this.#get(["settings", "camera", "url"]) },
+      ] as const
+    ) {
+      try {
+        if (name === "internet") {
+          const response = await fetch(url)
+          await this.#set(this.#log, ["ping", name], response.ok)
+          continue
+        }
+        const { pong } = await fetch(`${url}/ping`).then((response) => response.json())
+        await this.#set(this.#log, ["ping", name], pong)
+      } catch (error) {
+        this.#log.debug("ping failed", name, error)
+        await this.#set(this.#log, ["ping", name], false)
+      }
+    }
   }
 
   // ===================================================================================================================
@@ -1146,6 +1249,7 @@ export class Server {
   async #login(log: Logger, { username, password }: { username: string; password: string }) {
     log = log.with({ username }).debug("login...")
     const { password: hashed, ...user } = (await this.#get(["users", username]) ?? {}) as { password: string } & record
+    await delay(3000)
     if ((!user.username) || (await this.#hash(password) !== hashed)) {
       log.warn("login failed: invalid credentials")
       return this.#json({ error: StatusText[Status.Unauthorized] }, { status: Status.Unauthorized })
@@ -1248,7 +1352,7 @@ export class Server {
     const modules = await this.#get(["settings", "netatmo", "modules"]) as { mac: string; type: keyof Server["netatmo_data"] }[]
     if (!modules?.length) {
       log.warn("netatmo data fetching skipped: no modules (call #netatmo_station first)")
-      return
+      return false
     }
     const [station] = modules
     const date = new Date(t)
@@ -1283,6 +1387,7 @@ export class Server {
     if (errors.length) {
       throw new Error(errors.map(({ message }) => message).join("\n"))
     }
+    return true
   }
 
   // ===================================================================================================================
@@ -1477,7 +1582,7 @@ export class Server {
     if (status) {
       log.info(`set status to ${status} for ${duration} seconds`)
     }
-    if ((this.mode === "all") || (this.mode === "app")) {
+    if (this.mode === "app") {
       credentials = {
         username: await this.#get(["settings", "tapo", "username"]) as string,
         password: await this.#get(["settings", "tapo", "password"]) as string,
@@ -1504,7 +1609,6 @@ export class Server {
         await this.#set(log, ["overview", target.module], overview)
         return
       }
-      case "all":
       case "ctl": {
         // Prepare Tapo call
         log.debug("preparing tapo call")

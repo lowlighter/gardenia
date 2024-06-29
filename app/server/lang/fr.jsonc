@@ -53,6 +53,7 @@
   "settings_control_token": "Jeton d'authentification du serveur de contrôle",
   "settings_control_token_desc": "Le jeton d'authentification du serveur de contrôle. Celui-ci doit être fourni par le serveur de contrôle pour que l'application puisse communiquer avec lui. Vous pouvez le récupérer en accédant à la page web du serveur de contrôle.",
   "settings_control_button": "Enregistrer les paramètres",
+  "settings_control_button_test": "Tester la connexion",
 
   // Cemara settings
   "settings_camera": "Configuration de la caméra",
@@ -62,6 +63,7 @@
   "settings_camera_storage": "Répertoire de stockage des images",
   "settings_camera_storage_desc": "Le répertoire où les images capturées par la caméra seront stockées. Par exemple, <var>/data/pictures</var>.",
   "settings_camera_button": "Enregistrer les paramètres",
+  "settings_camera_button_test": "Tester la connexion",
 
   // Netatmo settings
   "settings_netatmo": "Configuration <a href=\"https://www.netatmo.com\">Netatmo</a>",
@@ -189,6 +191,7 @@
   "data_gustangle": "Direction des rafales",
   "data_illuminance": "Éclairement lumineux",
   "data_camera": "Caméra",
+  "data_empty": "Aucune donnée n'est actuellement disponible.",
 
   // Automation targets
   "automation_target": "Cibles d'automatisation",
@@ -252,7 +255,8 @@
   "manual_action_on": "Allumer manuellement",
   "manual_action_picture": "Prendre une photo",
   "manual_action_off": "Éteindre manuellement",
-  "manual_action_unavailable": "Il n'est pas possible de contrôler manuellement cette cible d'automatisation parce que le serveur n'est pas capable de déterminer son status actuel.",
+  "manual_action_unavailable": "Il n'est pas possible de contrôler manuellement cette cible d'automatisation parce que le serveur n'est pas en mesure de déterminer son status actuel.",
+  "manual_action_unavailable_because_target_disabled": "Il n'est pas possible de contrôler manuellement cette cible d'automatisation parce qu'elle est désactivée.",
 
   // Picture deletion
   "picture_delete": "Supprimer la photo",
@@ -305,10 +309,16 @@
   "off": "Éteint",
   "unknown": "Inconnu",
   "utc_time": "Heure UTC",
+  "select_placeholder": "Sélectionnez une valeur",
 
   // Control
   "mode_control": "<p>L'application est actuellement en mode <code>ctl</code>.</p><p>Ce mode est destiné à être utilisé en tandem avec une application en mode <code>app</code> avec le jeton d'authentification ci-dessous.</p>",
   "mode_control_token": "Jeton d'authentification du serveur de contrôle",
   "mode_control_token_desc": "Le jeton d'authentification du serveur de contrôle. Celui-ci doit être fourni à chaque requête afin d'autoriser les changements de modules.",
-  "mode_control_token_button": "Générer un nouveau jeton d'authentification"
+  "mode_control_token_button": "Générer un nouveau jeton d'authentification",
+
+  // Ping
+  "ping_internet": "Internet",
+  "ping_control": "Serveur de contrôle",
+  "ping_camera": "Caméra"
 }

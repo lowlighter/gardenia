@@ -18,7 +18,7 @@
             method: "POST",
           })
         } else {
-          if ((!this.settings.visibility.public_camera) && (!this.settings.visibility.public_pictures) && (!this.settings.visibility.public_data) && (!this.settings.visibility.public_modules)) {
+          if ((!this.settings.visibility.public_camera) && (!this.settings.visibility.public_pictures) && (!this.settings.visibility.public_data) && (!this.settings.visibility.public_modules) && (!this.settings.visibility.public_history)) {
             this.tab = "login"
           } else {
             this.tab = "home"
@@ -69,12 +69,15 @@
       targets: [],
       rules: [],
     },
+    ping: await fetch("/ping/status").then((response) => response.json()),
     settings: {
       meta: await fetch("/api/settings/meta").then((response) => response.json()),
       visibility: await fetch("/api/settings/visibility").then((response) => response.json()),
       tickrate: {},
       control: {},
+      control_test: {},
       camera: {},
+      camera_test: {},
       netatmo: {},
       netatmo_modules: [],
       tapo: {},
@@ -89,20 +92,25 @@
       this.t = Date.now()
       switch (tab) {
         case "user":
-          this.refresh_users()
+          await this.refresh_users()
           break
         case "automation":
-          this.refresh_automation()
+          await this.refresh_automation()
           break
         case "settings":
-          this.refresh_settings()
+          await this.refresh_settings()
           break
         case "home":
-          this.refresh_graphs(null)
-          this.refresh_overview()
-          this.refresh_pictures()
-          this.refresh_history()
+          await Promise.allSettled([
+            this.refresh_graphs(null),
+            this.refresh_overview(),
+            this.refresh_pictures(),
+            this.refresh_history(),
+          ])
           break
+      }
+      if (tab) {
+        await this.refresh_ping()
       }
       if (this.tab === "home") {
         for (const target of this.overview.targets) {
@@ -123,6 +131,10 @@
       return (this.lang[`history_entry_${entry.action}`] ?? entry.action)
         .replace(/%%/g, entry.user)
         .replace(/%([\w_]+)/g, (_, key) => entry.details?.[key])
+    },
+    /** Refresh ping. */
+    async refresh_ping() {
+      this.ping = await fetch("/ping/status").then((response) => response.json())
     },
     /** Refresh overview. */
     async refresh_overview() {
@@ -163,7 +175,9 @@
         this.settings.visibility = await fetch("/api/settings/visibility").then((response) => response.json())
         this.settings.tickrate = await fetch("/api/settings/tickrate").then((response) => response.json())
         this.settings.control = await fetch("/api/settings/control").then((response) => response.json())
+        this.settings.control_test = await fetch("/api/settings/control/test").then((response) => response.json())
         this.settings.camera = await fetch("/api/settings/camera").then((response) => response.json())
+        this.settings.camera_test = await fetch("/api/settings/camera/test").then((response) => response.json())
         this.settings.netatmo = await fetch("/api/settings/netatmo").then((response) => response.json())
         this.settings.netatmo_modules = await fetch("/api/settings/netatmo/modules").then((response) => response.json())
         this.settings.tapo = await fetch("/api/settings/tapo").then((response) => response.json())
@@ -250,7 +264,14 @@
       flash.appendChild(timer)
       section.appendChild(flash)
       const timeout = setTimeout(() => section.removeChild(flash), 5000)
-      section.addEventListener("click", () => (clearTimeout(timeout), section.removeChild(flash)))
+      section.addEventListener("click", () => {
+        try {
+          clearTimeout(timeout)
+          section.removeChild(flash)
+        } catch {
+          // pass
+        }
+      })
     },
     /** API request. */
     async api(event, endpoint, { flash = true, callback = null, method = "PATCH", body } = {}) {

@@ -129,7 +129,7 @@ export class Server {
   readonly #public = {} as record<string>
 
   /** Server version. */
-  readonly version = "2.0.0" as const
+  readonly version = "2.1.0" as const
 
   // ===================================================================================================================
 

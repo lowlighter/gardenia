@@ -72,10 +72,13 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
   allow_reuse_address = True
   daemon_threads = True
 
-picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main={"size": (1920, 1080)},raw={"size":picam2.sensor_resolution}))
-output = StreamingOutput()
-picam2.start_recording(MJPEGEncoder(), FileOutput(output))
+try:
+  picam2 = Picamera2()
+  picam2.configure(picam2.create_video_configuration(main={"size": (1920, 1080)},raw={"size":picam2.sensor_resolution}))
+  output = StreamingOutput()
+  picam2.start_recording(MJPEGEncoder(), FileOutput(output))
+except Exception as e:
+  print(e)
 
 try:
   address = ('', int(os.environ["STREAM_PORT"]))

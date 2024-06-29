@@ -86,9 +86,9 @@
               <div class="camera-wrapper">
                 <img :src="source" alt="">
               </div>
-              <div>
+              <div class="centered">
                 <template x-if="user.logged || settings.visibility.public_pictures">
-                  <select x-model="source">
+                  <select x-model.fill="source">
                     <template x-if="user.logged || settings.visibility.public_camera">
                       <option value="/camera" x-text="lang.data_camera"></option>
                     </template>
@@ -100,9 +100,7 @@
                   </select>
                 </template>
                 <template x-if="(source !== '/camera')&&(user.grant_admin || user.grant_data)">
-                  <form class="mt-.5">
-                    <footer><button class="danger" @click="await api($event, source, {callback:() => refresh_pictures(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button></footer>
-                  </form>
+                  <button class="danger mt-1" @click="await api($event, source, {callback:() => refresh_pictures(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
                 </template>
               </div>
             </div>

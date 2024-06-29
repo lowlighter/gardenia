@@ -422,6 +422,7 @@ export class Server {
                 return this.#json({
                   url: await this.#get(["settings", "camera", "url"]),
                   storage: await this.#get(["settings", "camera", "storage"]),
+                  max_pictures: await this.#get(["settings", "camera", "max_pictures"]),
                 })
               default:
                 return this.#unsupported()

@@ -5,9 +5,7 @@ based on conditions.
 
 This project was done as a volunteer for a high school in France.
 
-![](.github/pictures/gardenia_data.png)
-![](.github/pictures/gardenia_modules.png)
-![](.github/pictures/gardenia_automation.png)
+![](.github/pictures/gardenia_data.png) ![](.github/pictures/gardenia_modules.png) ![](.github/pictures/gardenia_automation.png)
 
 ## Requirements
 

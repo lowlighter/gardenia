@@ -16,12 +16,13 @@ if (import.meta.main) {
     ["signal-listener"]: is.boolean().default(true).optional(),
   }).parse(parseArgs(Deno.args, {}))
   const server = await new Server(args).ready
-  if (args["signal-listener"])
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    try {
-      Deno.addSignalListener(signal, () => server.close())
-    } catch (error) {
-      console.warn(error)
+  if (args["signal-listener"]) {
+    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+      try {
+        Deno.addSignalListener(signal, () => server.close())
+      } catch (error) {
+        console.warn(error)
+      }
     }
   }
 }

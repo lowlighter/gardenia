@@ -18,7 +18,10 @@
             method: "POST",
           })
         } else {
-          if ((!this.settings.visibility.public_camera) && (!this.settings.visibility.public_pictures) && (!this.settings.visibility.public_data) && (!this.settings.visibility.public_modules) && (!this.settings.visibility.public_history)) {
+          if (
+            (!this.settings.visibility.public_camera) && (!this.settings.visibility.public_pictures) && (!this.settings.visibility.public_data) && (!this.settings.visibility.public_modules) &&
+            (!this.settings.visibility.public_history)
+          ) {
             this.tab = "login"
           } else {
             this.tab = "home"

@@ -13,7 +13,7 @@ import { encodeHex } from "jsr:@std/encoding/hex"
 import { ensureDir, expandGlob } from "jsr:@std/fs"
 import { command } from "jsr:@libs/run@1"
 import { delay } from "jsr:@std/async/delay"
-import {hash} from "jsr:@libs/crypto/encryption"
+import { hash } from "jsr:@libs/crypto/encryption"
 import { toText } from "jsr:@std/streams@^0.224.1"
 
 /** User. */
@@ -47,7 +47,7 @@ type automation_rule = {
     value: number
     delta: number
   }>
-  ratelimit:number
+  ratelimit: number
   hits: number
   last_hit: Nullable<string>
   last_hit_t: Nullable<number>
@@ -94,7 +94,7 @@ export class Server {
           this.#stream(ports.picamera)
         }
         await this.#serve(ports.server)
-        if ((this.mode === "app")&&(await this.#get(["status"]) === "configured")) {
+        if ((this.mode === "app") && (await this.#get(["status"]) === "configured")) {
           await this.#tick()
         }
         resolve(this)
@@ -273,9 +273,9 @@ export class Server {
           case new URLPattern("/api/tick", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
               case "POST":
-                this.#authorize(user, {grant_admin: true})
+                this.#authorize(user, { grant_admin: true })
                 await this.#tick()
-                return this.#json({ok:true})
+                return this.#json({ ok: true })
               case "GET":
                 this.#authorize(user, null)
                 return this.#json(await this.#get(["settings", "tickrate", "last_tick"]))
@@ -615,7 +615,7 @@ export class Server {
                   grant_data: is.boolean(), // Read-only if not admin
                   logged: is.string().nullable().optional(), // Read-only
                 })
-                if ((await this.#get(["settings", "root"]) === username)&&(!grant_admin)) {
+                if ((await this.#get(["settings", "root"]) === username) && (!grant_admin)) {
                   return this.#json({ error: "This user cannot be demoted" }, { status: Status.NotAcceptable })
                 }
                 if (password) {
@@ -740,11 +740,11 @@ export class Server {
                       delta: is.coerce.number(),
                     }),
                     is.object({
-                      data: is.enum(['temperature', 'temperature_out', 'humidity', 'humidity_out', 'co2', 'pressure', 'noise', 'rain', 'windstrength', 'guststrength', 'windangle', 'gustangle']),
+                      data: is.enum(["temperature", "temperature_out", "humidity", "humidity_out", "co2", "pressure", "noise", "rain", "windstrength", "guststrength", "windangle", "gustangle"]),
                       operator: is.enum(["==", ">=", "<="]),
                       value: is.coerce.number(),
                       delta: is.coerce.number(),
-                    })
+                    }),
                   ])).min(1),
                   ratelimit: is.coerce.number().min(0),
                 })
@@ -752,7 +752,7 @@ export class Server {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
                 }
                 await this.#history_push(log, user, "create_automation_rule", { name, target, action, duration, priority, ratelimit })
-                await this.#set(log, ["automation", "rules", name], { name, target, priority, action, duration, conditions, ratelimit, hits: 0, last_hit: null, last_hit_t:null } as automation_rule)
+                await this.#set(log, ["automation", "rules", name], { name, target, priority, action, duration, conditions, ratelimit, hits: 0, last_hit: null, last_hit_t: null } as automation_rule)
               }
               case "GET": {
                 this.#authorize(user, {})
@@ -818,7 +818,7 @@ export class Server {
                   action: is.enum(["on", "off"]),
                   duration: is.coerce.number().min(0).default(0),
                 })
-                await this.#action(log, { name: `@${user!.username}`, target, priority: NaN, action, duration, conditions: [], ratelimit:0, hits: NaN, last_hit: null, last_hit_t:null })
+                await this.#action(log, { name: `@${user!.username}`, target, priority: NaN, action, duration, conditions: [], ratelimit: 0, hits: NaN, last_hit: null, last_hit_t: null })
                 return this.#json({})
               }
               default:
@@ -886,7 +886,7 @@ export class Server {
                   if (!user) {
                     target.module = crypto.randomUUID()
                   }
-                  if (((target as record).status_details)&&(!user)) {
+                  if (((target as record).status_details) && (!user)) {
                     const details = (target as record).status_details as record
                     if (`${details.rule}`.startsWith("@")) {
                       details.rule = "@user"
@@ -973,9 +973,8 @@ export class Server {
                 this.#authorize(user, { grant_admin: true })
                 await this.#history_push(log, user, "exit")
                 try {
-                  return this.#json({ok:true})
-                }
-                finally {
+                  return this.#json({ ok: true })
+                } finally {
                   this.close().finally(() => Deno.exit(1))
                 }
               }
@@ -1047,7 +1046,7 @@ export class Server {
                 await this.#set(this.#log, ["settings", "tickrate", "max_pictures"], 1000)
                 log.info("server configured")
                 await this.#history_push(log, null, "setup", { instance_name })
-                return this.#login(log, { ip:null, username, password })
+                return this.#login(log, { ip: null, username, password })
               }
               default:
                 return this.#unsupported()
@@ -1059,7 +1058,7 @@ export class Server {
                 this.#authorize(user, { grant_admin: true })
                 const config = {
                   version: this.version,
-                  data:[
+                  data: [
                     [["status"], await this.#get(["status"])],
                     [["settings", "meta", "instance_name"], await this.#get(["settings", "meta", "instance_name"])],
                     [["settings", "visibility", "public_pictures"], await this.#get(["settings", "visibility", "public_pictures"])],
@@ -1088,16 +1087,16 @@ export class Server {
                     [["settings", "tapo", "token"], await this.#get(["settings", "tapo", "token"])],
                     [["settings", "tapo", "modules"], await this.#get(["settings", "tapo", "modules"])],
                     [["settings", "notes", "content"], await this.#get(["settings", "notes", "content"])],
-                  ]
+                  ],
                 }
                 for (const prefix of [["users"], ["automation", "targets"], ["automation", "rules"]]) {
-                  for await (const {key, value} of this.#kv.list({ prefix })) {
+                  for await (const { key, value } of this.#kv.list({ prefix })) {
                     config.data.push([key, value])
                   }
                 }
                 const b64 = btoa(JSON.stringify(config))
                 const sha256 = await hash(b64)
-                return new Response(`${sha256}.${b64}`, {headers:{'Content-Disposition': 'attachment; filename="config.json"'}})
+                return new Response(`${sha256}.${b64}`, { headers: { "Content-Disposition": 'attachment; filename="config.json"' } })
               }
               default:
                 return this.#unsupported()
@@ -1113,7 +1112,7 @@ export class Server {
                 if (sha256 !== await hash(b64)) {
                   return this.#json({ error: "Configuration file is corrupted" }, { status: Status.BadRequest })
                 }
-                const {version, data} = is.object({
+                const { version, data } = is.object({
                   version: is.string(),
                   data: is.array(is.tuple([is.array(is.string()), is.any()])),
                 }).parse(config)
@@ -1124,7 +1123,7 @@ export class Server {
                   await this.#set(log, key, value)
                 }
                 await this.#history_push(log, user, "import")
-                return this.#json({ok:true})
+                return this.#json({ ok: true })
               }
               default:
                 return this.#unsupported()
@@ -1194,8 +1193,7 @@ export class Server {
       await this.#evaluate(log).catch((error) => log.error(error))
       await this.#tapo_sync(log)
       await this.#set(this.#log, ["settings", "tickrate", "last_tick"], tick)
-    }
-    finally {
+    } finally {
       const delta = 1000 * (await this.#get(["settings", "tickrate", "tickrate"]) as number)
       log.debug(`next tick in ${Number.parseInt(`${delta / 1000}`)}s`, new Date(Date.now() + delta).toISOString().slice(0, 16))
       this.#tick_timeout = setTimeout(() => this.#tick(), delta)
@@ -1331,11 +1329,12 @@ export class Server {
   readonly #login_pending = new Set<string>()
 
   /** Login user. */
-  async #login(log: Logger, { ip, username, password }: { ip:Nullable<string>, username: string; password: string }) {
+  async #login(log: Logger, { ip, username, password }: { ip: Nullable<string>; username: string; password: string }) {
     try {
       if (ip) {
-        if (this.#login_pending.has(ip))
-        return this.#json({ error: StatusText[Status.TooManyRequests] }, { status: Status.TooManyRequests })
+        if (this.#login_pending.has(ip)) {
+          return this.#json({ error: StatusText[Status.TooManyRequests] }, { status: Status.TooManyRequests })
+        }
         this.#login_pending.add(ip)
       }
       log = log.with({ username }).debug("login...")
@@ -1351,8 +1350,7 @@ export class Server {
       log.with({ session: session.slice(0, 8) }).info("login success")
       await this.#history_push(log, { username }, "login")
       return this.#json(user, { cookie: { name: "gardenia_session", value: session, path: "/" } })
-    }
-    finally {
+    } finally {
       this.#login_pending.delete(ip as string)
     }
   }
@@ -1827,10 +1825,10 @@ export class Server {
         log.debug("evaluation skipped (already triggered by a previous rule)")
         continue
       }
-      if ((rule.last_hit_t)&&(rule.ratelimit)) {
-        const delta = (Date.now() - rule.last_hit_t)/1000
+      if ((rule.last_hit_t) && (rule.ratelimit)) {
+        const delta = (Date.now() - rule.last_hit_t) / 1000
         if (delta < rule.ratelimit) {
-          log.with({ratelimit:rule.ratelimit}).debug(`evaluation skipped (already triggered within rate limit, last hit ${delta}s ago)`)
+          log.with({ ratelimit: rule.ratelimit }).debug(`evaluation skipped (already triggered within rate limit, last hit ${delta}s ago)`)
           continue
         }
       }

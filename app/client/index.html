@@ -254,7 +254,7 @@
                   </template>
                 </template>
               </div>
-              <template x-if="!Object.values(graphs.data).reduce((a, b) => a && b.graph, true)">
+              <template x-if="!Object.values(graphs.data).reduce((a, b) => a || b.graph, false)">
                 <section>
                   <div class="flash muted" x-html="lang.data_empty"></div>
                 </section>
@@ -850,7 +850,7 @@
               <button @click="await api($event, '/api/tick', {method:'POST'})" x-text="lang[`${section}_force_tick`]"></button>
             </form>
             <form class="bd-muted">
-              <small class="muted" x-text="lang[`${section}_export_desc`]"></small><br>
+              <small class="muted" x-html="lang[`${section}_export_desc`]"></small><br>
               <button @click.prevent="window.open('/api/export', '_blank')" x-text="lang[`${section}_export`]"></button>
             </form>
             <form class="bd-muted">

@@ -505,7 +505,7 @@
             <template x-if="automation.targets.length">
               <div>
                 <template x-for="rule in automation.rules" :key="rule.name">
-                  <article :class="{'bd-active':rule.name === data.name}" @click="rule.name === data.name ? (form_visible = false, data = {}) : (form_visible = true, method = 'PUT', endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`, data = rule)">
+                  <article class="mb-1" :class="{'bd-active':rule.name === data.name}" @click="rule.name === data.name ? (form_visible = false, data = {}) : (form_visible = true, method = 'PUT', endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`, data = rule)">
                     <header>
                       <h3>
                         <img class="automation-icon" :src="`/svg/${Object.values(automation.targets).find(target => target.module === rule.target)?.icon || 'box'}.svg`" alt="">
@@ -520,19 +520,23 @@
                         <code class="muted" x-text="`${lang.automation_rule_last_hit} ${rule.last_hit}`"></code>
                       </template>
                       <template x-if="rule.ratelimit">
-                        <code class="muted" x-text="`1 / ${rule.ratelimit}s`"></code>
+                        <code class="muted" x-text="`${lang.automation_rule_ratelimit_text} ${rule.ratelimit}s`"></code>
                       </template>
                       <template x-if="rule.disabled">
                         <code class="muted" x-text="lang.automation_rule_disabled"></code>
                       </template>
                     </header>
                     <p>
-                      <code x-text="rule.target === 'picamera' ? lang.automation_rule_action_picture : `${lang[`automation_rule_action_${rule.action}`]}${rule.action === 'on' ? ` (${rule.duration}s)` : ''}`"></code>
+                      <code x-text="rule.target === 'picamera' ? lang.automation_rule_action_picture : `${lang[`automation_rule_action_${rule.action}`]}`"></code>
+                      <template x-if="(rule.target !== 'picamera')&&(rule.action === 'on')">
+                        <code x-text="`${rule.duration}s`"></code>
+                      </template>
+                      <small x-text="lang.automation_rule_conditions_text"></small> :
                     </p>
                     <ul>
                       <template x-for="{data, operator, value, delta} in rule.conditions">
                         <li>
-                          <var x-text="data"></var>
+                          <var x-text="lang[`data_${data}`]"></var>
                           <span x-text="lang[`automation_rule_operator_${operator}`]"></span>
                           <code x-text="value"></code>
                           <template x-if="(delta)&&(operator === '==')">

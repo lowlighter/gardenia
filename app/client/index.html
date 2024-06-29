@@ -426,7 +426,7 @@
                 <tbody>
                   <template x-for="target in automation.targets" :key="target.module">
                     <tr :class="{selected:target.module === data.module}" @click="target.module === data.module ? (form_visible = false, data = {}) : (form_visible = true, method = 'PUT', endpoint = `/api/automation/targets/${encodeURIComponent(target.module)}`, data = target)">
-                      <td><img class="automation-icon" :src="`/svg/${target.icon}.svg`" alt=""></td>
+                      <td><img class="automation-icon" :src="`/svg/${target.icon || 'box'}.svg`" alt=""></td>
                       <td x-text="target.name"></td>
                       <td x-text="target.module"></td>
                       <td x-text="target.disabled ? lang.yes : lang.no"></td>
@@ -458,7 +458,7 @@
                   <div class="flex">
                     <template x-for="icon in icons" :key="icon">
                       <label class="mr-1">
-                        <img class="automation-icon" :class="{selected:data.icon === icon}" :src="`/svg/${icon}.svg`" alt="">
+                        <img class="automation-icon" :class="{selected:data.icon === icon}" :src="`/svg/${icon || 'box'}.svg`" alt="">
                         <input x-model="data.icon" type="radio" :value="icon">
                       </label>
                     </template>
@@ -503,58 +503,68 @@
               <div class="flash muted" x-html="lang.automation_target_empty"></div>
             </template>
             <template x-if="automation.targets.length">
-              <div class="table-responsive">
-                <table class="mt-1">
-                  <thead>
-                    <tr>
-                      <th></th>
-                      <th x-text="lang.automation_rule_priority"></th>
-                      <th x-text="lang.automation_rule_name"></th>
-                      <th x-text="lang.automation_rule_action"></th>
-                      <th x-text="lang.automation_rule_target"></th>
-                      <th x-text="lang.automation_rule_last_hit"></th>
-                      <th x-text="lang.automation_rule_ratelimit"></th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    <template x-for="rule in automation.rules" :key="rule.name">
-                      <tr :class="{selected:rule.name === data.name}" @click="rule.name === data.name ? (form_visible = false, data = {}) : (form_visible = true, method = 'PUT', endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`, data = rule)">
-                        <td><img class="automation-icon" :src="`/svg/${Object.values(automation.targets).find(target => target.module === rule.target)?.icon}.svg`" alt=""></td>
-                        <td x-text="rule.priority"></td>
-                        <td x-text="rule.name"></td>
-                        <td x-text="Object.values(automation.targets).find(target => target.module === rule.target)?.name"></td>
-                        <td x-text="rule.target === 'picamera' ? lang.automation_rule_action_picture : `${lang[`automation_rule_action_${rule.action}`]}${rule.action === 'on' ? ` (${rule.duration}s)` : ''}`"></td>
-                        <td x-text="rule.last_hit ?? lang.automation_rule_last_hit_never"></td>
-                        <td x-text="rule.ratelimit ? `${rule.ratelimit}s` : lang.automation_rule_ratelimit_none"></td>
-                      </tr>
-                    </template>
-                    <template x-if="!automation.rules.length">
-                      <tr>
-                        <td colspan="6" class="muted" x-text="lang.automation_rule_empty"></td>
-                      </tr>
-                    </template>
-                  </tbody>
-                  <template x-if="user.grant_automation">
-                    <tfoot>
-                      <tr>
-                        <td colspan="7">
-                          <button class="success" x-text="lang.automation_rule_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/automation/rules'; data = {name:'', hits:0, last_hit:null, target:'', priority:0, action:'on', duration:0, conditions:[], ratelimit:0}"></button>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </template>
-                </table>
+              <div>
+                <template x-for="rule in automation.rules" :key="rule.name">
+                  <article :class="{'bd-active':rule.name === data.name}" @click="rule.name === data.name ? (form_visible = false, data = {}) : (form_visible = true, method = 'PUT', endpoint = `/api/automation/rules/${encodeURIComponent(rule.name)}`, data = rule)">
+                    <header>
+                      <h3>
+                        <img class="automation-icon" :src="`/svg/${Object.values(automation.targets).find(target => target.module === rule.target)?.icon || 'box'}.svg`" alt="">
+                        <span x-text="rule.name"></span>
+                      </h3>
+                      <small class="muted">
+                        <var x-text="Object.values(automation.targets).find(target => target.module === rule.target)?.name"></var>
+                      </small><br>
+                      <code class="muted" x-text="`${lang.automation_rule_priority} ${rule.priority}`"></code>
+                      <code class="muted" x-text="`${lang.automation_rule_hits_count} ${rule.hits}`"></code>
+                      <template x-if="rule.last_hit">
+                        <code class="muted" x-text="`${lang.automation_rule_last_hit} ${rule.last_hit}`"></code>
+                      </template>
+                      <template x-if="rule.ratelimit">
+                        <code class="muted" x-text="`1 / ${rule.ratelimit}s`"></code>
+                      </template>
+                      <template x-if="rule.disabled">
+                        <code class="muted" x-text="lang.automation_rule_disabled"></code>
+                      </template>
+                    </header>
+                    <p>
+                      <code x-text="rule.target === 'picamera' ? lang.automation_rule_action_picture : `${lang[`automation_rule_action_${rule.action}`]}${rule.action === 'on' ? ` (${rule.duration}s)` : ''}`"></code>
+                    </p>
+                    <ul>
+                      <template x-for="{data, operator, value, delta} in rule.conditions">
+                        <li>
+                          <var x-text="data"></var>
+                          <span x-text="lang[`automation_rule_operator_${operator}`]"></span>
+                          <code x-text="value"></code>
+                          <template x-if="(delta)&&(operator === '==')">
+                            <span x-text="lang.automation_rule_delta"></span>
+                          </template>
+                          <template x-if="(delta)&&(operator === '==')">
+                            <code x-text="delta"></code>
+                          </template>
+                        </li>
+                      </template>
+                    </ul>
+                  </article>
+                </template>
+                <template x-if="user.grant_automation">
+                  <button class="success my-1" x-text="lang.automation_rule_button_create" @click="form_visible = true; method = 'POST'; endpoint = '/api/automation/rules'; data = {name:'', hits:0, last_hit:null, target:'', priority:0, action:'on', duration:0, conditions:[], ratelimit:0, disabled:false}"></button>
+                </template>
+                <template x-if="!automation.rules.length">
+                  <div class="flash muted" x-html="lang.automation_rule_empty"></div>
+                </template>
               </div>
             </template>
             <template x-if="form_visible">
               <!-- Automation rule form -->
               <form x-data="{section:'automation_rule'}">
-                <template x-for="({name, disabled, required, placeholder, type}) in [{name:'name', required:true}, {name:'hits', type:'number', disabled:true}, {name:'last_hit', type:'datetime-local', disabled:true}, {name:'priority', type:'number'}]" :key="name">
+                <template x-for="({name, disabled, required, placeholder, type}) in [{name:'name', required:true}, {name:'hits', type:'number', disabled:true}, {name:'last_hit', type:'datetime-local', disabled:true}, {name:'priority', type:'number'}, {name:'disabled', type:'checkbox'}]" :key="name">
                   <template x-if="!((method === 'POST')&&((name === 'hits')||(name === 'last_hit')))">
                     <label>
                       <span x-html="lang[`${section}_${name}`]"></span><br>
                       <small x-html="lang[`${section}_${name}_desc`]"></small>
+                      <template x-if="type === 'checkbox'">
+                        <br>
+                      </template>
                       <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
                     </label>
                   </template>

@@ -48,6 +48,7 @@ type automation_rule = {
     delta: number
   }>
   ratelimit: number
+  disabled: boolean
   hits: number
   last_hit: Nullable<string>
   last_hit_t: Nullable<number>
@@ -724,7 +725,7 @@ export class Server {
             switch (request.method) {
               case "POST": {
                 this.#authorize(user, { grant_automation: true })
-                const { name, target, priority, action, duration, conditions, ratelimit } = await this.#check(request, {
+                const { name, target, priority, action, duration, conditions, ratelimit, disabled } = await this.#check(request, {
                   name: is.string().min(1).max(64),
                   hits: is.number().nullable().optional(), // Read-only
                   last_hit: is.string().nullable().optional(), // Read-only
@@ -748,12 +749,17 @@ export class Server {
                     }),
                   ])).min(1),
                   ratelimit: is.coerce.number().min(0),
+                  disabled: is.boolean().default(false),
                 })
                 if (await this.#get(["automation", "rules", name])) {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
                 }
-                await this.#history_push(log, user, "create_automation_rule", { name, target, action, duration, priority, ratelimit })
-                await this.#set(log, ["automation", "rules", name], { name, target, priority, action, duration, conditions, ratelimit, hits: 0, last_hit: null, last_hit_t: null } as automation_rule)
+                await this.#history_push(log, user, "create_automation_rule", { name, target, action, duration, priority, ratelimit, disabled })
+                await this.#set(
+                  log,
+                  ["automation", "rules", name],
+                  { name, target, priority, action, duration, conditions, ratelimit, disabled, hits: 0, last_hit: null, last_hit_t: null } as automation_rule,
+                )
               }
               case "GET": {
                 this.#authorize(user, {})
@@ -781,7 +787,7 @@ export class Server {
               }
               case "PUT": {
                 this.#authorize(user, { grant_automation: true })
-                const { target, priority, action, duration, conditions, ratelimit } = await this.#check(request, {
+                const { target, priority, action, duration, conditions, ratelimit, disabled } = await this.#check(request, {
                   name: is.string().min(1).max(64), // Read-only
                   hits: is.number().nullable().optional(), // Read-only
                   last_hit: is.string().nullable().optional(), // Read-only
@@ -797,9 +803,10 @@ export class Server {
                     delta: is.coerce.number(),
                   })).min(1),
                   ratelimit: is.coerce.number().min(0),
+                  disabled: is.boolean().default(false),
                 })
-                await this.#history_push(log, user, "change_automation_rule", { name: rule, target, action, duration, priority, ratelimit })
-                await this.#set(log, ["automation", "rules", rule], { ...ruledata, target, priority, action, duration, conditions, ratelimit } as automation_rule)
+                await this.#history_push(log, user, "change_automation_rule", { name: rule, target, action, duration, priority, ratelimit, disabled })
+                await this.#set(log, ["automation", "rules", rule], { ...ruledata, target, priority, action, duration, conditions, ratelimit, disabled } as automation_rule)
               }
               case "GET": {
                 this.#authorize(user, {})
@@ -819,7 +826,19 @@ export class Server {
                   action: is.enum(["on", "off"]),
                   duration: is.coerce.number().min(0).default(0),
                 })
-                await this.#action(log, { name: `@${user!.username}`, target, priority: NaN, action, duration, conditions: [], ratelimit: 0, hits: NaN, last_hit: null, last_hit_t: null })
+                await this.#action(log, {
+                  name: `@${user!.username}`,
+                  target,
+                  priority: NaN,
+                  action,
+                  duration,
+                  conditions: [],
+                  ratelimit: 0,
+                  disabled: false,
+                  hits: NaN,
+                  last_hit: null,
+                  last_hit_t: null,
+                })
                 return this.#json({})
               }
               default:
@@ -1044,7 +1063,7 @@ export class Server {
                 log.info("created admin user", username)
                 await this.#set(log, ["status"], "configured")
                 await this.#set(this.#log, ["settings", "tickrate", "tickrate"], 60)
-                await this.#set(this.#log, ["settings", "tickrate", "max_pictures"], 1000)
+                await this.#set(this.#log, ["settings", "camera", "max_pictures"], 1000)
                 log.info("server configured")
                 await this.#history_push(log, null, "setup", { instance_name })
                 return this.#login(log, { ip: null, username, password })
@@ -1771,9 +1790,10 @@ export class Server {
 
   /** Take a picture with Raspberry Pi camera. */
   async #picture(log: Logger) {
-    if (this.#pictures.length + 1 > (await this.#get(["settings", "camera", "max_pictures"]) as number)) {
-      log.error("maximum number of pictures reached")
-      throw new Error("Maximum number of pictures reached")
+    const max_pictures = await this.#get(["settings", "camera", "max_pictures"]) as number
+    if (this.#pictures.length + 1 > max_pictures) {
+      log.error(`maximum number of pictures reached: ${max_pictures}`)
+      throw new Error(`Maximum number of pictures reached: ${max_pictures}`)
     }
     const file = `${new Date().toISOString().replaceAll(/[^\dTZ]/g, "_").replaceAll(/[TZ]/g, "")}.png`
     const storage = await this.#get(["settings", "camera", "storage"]) as Nullable<string> ?? "/tmp"
@@ -1822,6 +1842,10 @@ export class Server {
     const processed = new Map<string, string>()
     for (const rule of rules) {
       const log = logger.with({ rule: rule.name, priority: rule.priority, target: rule.target }).debug("evaluating rule...")
+      if (rule.disabled) {
+        log.debug("evaluation skipped (rule disabled)")
+        continue
+      }
       if (processed.has(rule.target)) {
         log.debug("evaluation skipped (already triggered by a previous rule)")
         continue

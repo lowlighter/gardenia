@@ -13,8 +13,10 @@ if (import.meta.main) {
     mode: is.enum(["app", "ctl"]),
     kv: is.string().optional(),
     loglevel: is.union([is.number(), is.string()]).optional(),
+    ["signal-listener"]: is.boolean().default(true).optional(),
   }).parse(parseArgs(Deno.args, {}))
   const server = await new Server(args).ready
+  if (args["signal-listener"])
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     try {
       Deno.addSignalListener(signal, () => server.close())

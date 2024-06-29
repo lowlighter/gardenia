@@ -13,6 +13,8 @@ import { encodeHex } from "jsr:@std/encoding/hex"
 import { ensureDir, expandGlob } from "jsr:@std/fs"
 import { command } from "jsr:@libs/run@1"
 import { delay } from "jsr:@std/async/delay"
+import {hash} from "jsr:@libs/crypto/encryption"
+import { toText } from "jsr:@std/streams@^0.224.1"
 
 /** User. */
 type user = {
@@ -45,8 +47,10 @@ type automation_rule = {
     value: number
     delta: number
   }>
+  ratelimit:number
   hits: number
   last_hit: Nullable<string>
+  last_hit_t: Nullable<number>
 }
 
 /**
@@ -90,7 +94,7 @@ export class Server {
           this.#stream(ports.picamera)
         }
         await this.#serve(ports.server)
-        if (this.mode === "app") {
+        if ((this.mode === "app")&&(await this.#get(["status"]) === "configured")) {
           await this.#tick()
         }
         resolve(this)
@@ -265,6 +269,19 @@ export class Server {
               default:
                 return this.#unsupported()
             }
+          // Server tick
+          case new URLPattern("/api/tick", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "POST":
+                this.#authorize(user, {grant_admin: true})
+                await this.#tick()
+                return this.#json({ok:true})
+              case "GET":
+                this.#authorize(user, null)
+                return this.#json(await this.#get(["settings", "tickrate", "last_tick"]))
+              default:
+                return this.#unsupported()
+            }
           // Meta settings
           case new URLPattern("/api/settings/meta", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -393,6 +410,7 @@ export class Server {
                 const { url, storage } = await this.#check(request, {
                   url: is.string().url().min(1).max(255),
                   storage: is.string().min(1).max(255),
+                  max_pictures: is.number().optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "camera", "url"], url)
                 await this.#set(log, ["settings", "camera", "url"], url)
@@ -705,10 +723,11 @@ export class Server {
             switch (request.method) {
               case "POST": {
                 this.#authorize(user, { grant_automation: true })
-                const { name, target, priority, action, duration, conditions } = await this.#check(request, {
+                const { name, target, priority, action, duration, conditions, ratelimit } = await this.#check(request, {
                   name: is.string().min(1).max(64),
                   hits: is.number().nullable().optional(), // Read-only
                   last_hit: is.string().nullable().optional(), // Read-only
+                  last_hit_t: is.number().nullable().optional(), // Read-only
                   target: is.string().min(1).max(64),
                   priority: is.coerce.number().min(0),
                   action: is.enum(["on", "off"]),
@@ -727,12 +746,13 @@ export class Server {
                       delta: is.coerce.number(),
                     })
                   ])).min(1),
+                  ratelimit: is.coerce.number().min(0),
                 })
                 if (await this.#get(["automation", "rules", name])) {
                   return this.#json({ error: StatusText[Status.Conflict] }, { status: Status.Conflict })
                 }
-                await this.#history_push(log, user, "create_automation_rule", { name, target, action, duration, priority })
-                await this.#set(log, ["automation", "rules", name], { name, target, priority, action, duration, conditions, hits: 0, last_hit: null } as automation_rule)
+                await this.#history_push(log, user, "create_automation_rule", { name, target, action, duration, priority, ratelimit })
+                await this.#set(log, ["automation", "rules", name], { name, target, priority, action, duration, conditions, ratelimit, hits: 0, last_hit: null, last_hit_t:null } as automation_rule)
               }
               case "GET": {
                 this.#authorize(user, {})
@@ -760,10 +780,11 @@ export class Server {
               }
               case "PUT": {
                 this.#authorize(user, { grant_automation: true })
-                const { target, priority, action, duration, conditions } = await this.#check(request, {
+                const { target, priority, action, duration, conditions, ratelimit } = await this.#check(request, {
                   name: is.string().min(1).max(64), // Read-only
                   hits: is.number().nullable().optional(), // Read-only
                   last_hit: is.string().nullable().optional(), // Read-only
+                  last_hit_t: is.number().nullable().optional(), // Read-only
                   target: is.string().min(1).max(64),
                   priority: is.coerce.number().min(0),
                   action: is.enum(["on", "off"]),
@@ -774,9 +795,10 @@ export class Server {
                     value: is.union([is.string().regex(/^\d{2}:\d{2}$/), is.coerce.number()]),
                     delta: is.coerce.number(),
                   })).min(1),
+                  ratelimit: is.coerce.number().min(0),
                 })
-                await this.#history_push(log, user, "change_automation_rule", { name: rule, target, action, duration, priority })
-                await this.#set(log, ["automation", "rules", rule], { ...ruledata, target, priority, action, duration, conditions } as automation_rule)
+                await this.#history_push(log, user, "change_automation_rule", { name: rule, target, action, duration, priority, ratelimit })
+                await this.#set(log, ["automation", "rules", rule], { ...ruledata, target, priority, action, duration, conditions, ratelimit } as automation_rule)
               }
               case "GET": {
                 this.#authorize(user, {})
@@ -796,7 +818,7 @@ export class Server {
                   action: is.enum(["on", "off"]),
                   duration: is.coerce.number().min(0).default(0),
                 })
-                await this.#action(log, { name: `@${user!.username}`, target, priority: NaN, action, duration, conditions: [], hits: NaN, last_hit: null })
+                await this.#action(log, { name: `@${user!.username}`, target, priority: NaN, action, duration, conditions: [], ratelimit:0, hits: NaN, last_hit: null, last_hit_t:null })
                 return this.#json({})
               }
               default:
@@ -944,6 +966,22 @@ export class Server {
                 return this.#unsupported()
             }
           }
+          // Exit application
+          case new URLPattern("/api/exit", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "POST": {
+                this.#authorize(user, { grant_admin: true })
+                await this.#history_push(log, user, "exit")
+                try {
+                  return this.#json({ok:true})
+                }
+                finally {
+                  this.close().finally(() => Deno.exit(1))
+                }
+              }
+              default:
+                return this.#unsupported()
+            }
           // Camera
           case new URLPattern("/camera", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
@@ -973,7 +1011,7 @@ export class Server {
                   grant_automation: is.boolean(), // Read-only
                   grant_data: is.boolean(), // Read-only
                 })
-                return this.#login(log, { username, password })
+                return this.#login(log, { ip, username, password })
               }
               default:
                 return this.#unsupported()
@@ -1005,44 +1043,88 @@ export class Server {
                 await this.#set(log, ["settings", "root"], username)
                 log.info("created admin user", username)
                 await this.#set(log, ["status"], "configured")
+                await this.#set(this.#log, ["settings", "tickrate", "tickrate"], 60)
+                await this.#set(this.#log, ["settings", "tickrate", "max_pictures"], 1000)
                 log.info("server configured")
                 await this.#history_push(log, null, "setup", { instance_name })
-                return this.#login(log, { username, password })
+                return this.#login(log, { ip:null, username, password })
               }
               default:
                 return this.#unsupported()
             }
-          // History
+          // Export
           case new URLPattern("/api/export", url.origin).test(url.href.replace(url.search, "")):
             switch (request.method) {
               case "GET": {
                 this.#authorize(user, { grant_admin: true })
-                return this.#json({
-                  settings: [
+                const config = {
+                  version: this.version,
+                  data:[
+                    [["status"], await this.#get(["status"])],
                     [["settings", "meta", "instance_name"], await this.#get(["settings", "meta", "instance_name"])],
-                    [["settings", "visibility", "public_modules"], await this.#get(["settings", "visibility", "public_modules"])],
                     [["settings", "visibility", "public_pictures"], await this.#get(["settings", "visibility", "public_pictures"])],
-                    [["settings", "visibility", "public_data"], await this.#get(["settings", "visibility", "public_data"])],
-                    [["settings", "visibility", "public_history"], await this.#get(["settings", "visibility", "public_history"])],
                     [["settings", "visibility", "public_camera"], await this.#get(["settings", "visibility", "public_camera"])],
+                    [["settings", "visibility", "public_data"], await this.#get(["settings", "visibility", "public_data"])],
+                    [["settings", "visibility", "public_modules"], await this.#get(["settings", "visibility", "public_modules"])],
+                    [["settings", "visibility", "public_history"], await this.#get(["settings", "visibility", "public_history"])],
                     [["settings", "tickrate", "tickrate"], await this.#get(["settings", "tickrate", "tickrate"])],
+                    [["settings", "tickrate", "last_tick"], await this.#get(["settings", "tickrate", "last_tick"])],
                     [["settings", "control", "url"], await this.#get(["settings", "control", "url"])],
                     [["settings", "control", "token"], await this.#get(["settings", "control", "token"])],
                     [["settings", "camera", "url"], await this.#get(["settings", "camera", "url"])],
                     [["settings", "camera", "storage"], await this.#get(["settings", "camera", "storage"])],
+                    [["settings", "camera", "max_pictures"], await this.#get(["settings", "camera", "max_pictures"])],
                     [["settings", "netatmo", "client_id"], await this.#get(["settings", "netatmo", "client_id"])],
                     [["settings", "netatmo", "client_secret"], await this.#get(["settings", "netatmo", "client_secret"])],
                     [["settings", "netatmo", "refresh_token"], await this.#get(["settings", "netatmo", "refresh_token"])],
+                    [["settings", "netatmo", "access_token"], await this.#get(["settings", "netatmo", "access_token"])],
+                    [["settings", "netatmo", "access_token_expiration"], await this.#get(["settings", "netatmo", "access_token_expiration"])],
+                    [["settings", "netatmo", "modules"], await this.#get(["settings", "netatmo", "modules"])],
+                    [["settings", "netatmo", "user_mail"], await this.#get(["settings", "netatmo", "user_mail"])],
                     [["settings", "tapo", "username"], await this.#get(["settings", "tapo", "username"])],
                     [["settings", "tapo", "password"], await this.#get(["settings", "tapo", "password"])],
                     [["settings", "tapo", "api"], await this.#get(["settings", "tapo", "api"])],
+                    [["settings", "tapo", "uuid"], await this.#get(["settings", "tapo", "uuid"])],
+                    [["settings", "tapo", "token"], await this.#get(["settings", "tapo", "token"])],
+                    [["settings", "tapo", "modules"], await this.#get(["settings", "tapo", "modules"])],
                     [["settings", "notes", "content"], await this.#get(["settings", "notes", "content"])],
-                  ],
-                  automations: {
-                    targets: (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "targets"] }))).map(({ value }) => value),
-                    rules: (await Array.fromAsync(this.#kv.list({ prefix: ["automation", "rules"] }))).map(({ value }) => value),
-                  },
-                })
+                  ]
+                }
+                for (const prefix of [["users"], ["automation", "targets"], ["automation", "rules"]]) {
+                  for await (const {key, value} of this.#kv.list({ prefix })) {
+                    config.data.push([key, value])
+                  }
+                }
+                const b64 = btoa(JSON.stringify(config))
+                const sha256 = await hash(b64)
+                return new Response(`${sha256}.${b64}`, {headers:{'Content-Disposition': 'attachment; filename="config.json"'}})
+              }
+              default:
+                return this.#unsupported()
+            }
+          // Import
+          case new URLPattern("/api/import", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "POST": {
+                this.#authorize(user, { grant_admin: true })
+                const file = await toText(request.body!)
+                const [sha256, b64] = file.split(".")
+                const config = JSON.parse(atob(b64))
+                if (sha256 !== await hash(b64)) {
+                  return this.#json({ error: "Configuration file is corrupted" }, { status: Status.BadRequest })
+                }
+                const {version, data} = is.object({
+                  version: is.string(),
+                  data: is.array(is.tuple([is.array(is.string()), is.any()])),
+                }).parse(config)
+                if (version !== this.version) {
+                  return this.#json({ error: `Incompatible version (expected "${this.version}" got "${version}")` }, { status: Status.BadRequest })
+                }
+                for (const [key, value] of data) {
+                  await this.#set(log, key, value)
+                }
+                await this.#history_push(log, user, "import")
+                return this.#json({ok:true})
               }
               default:
                 return this.#unsupported()
@@ -1088,36 +1170,36 @@ export class Server {
   async #tick() {
     clearTimeout(this.#tick_timeout)
     const tick = new Date().toISOString().slice(0, 16)
-    const last_tick = await this.#get(["settings", "tickrate", "last_tick"])
     const log = this.#log.with({ tick }).debug("ticking...")
-    if (last_tick) {
-      log.debug("last tick was", last_tick)
-    }
-    await this.#ping()
-    for (const attempt of [0, 1]) {
-      try {
-        await this.#netatmo_data(log)
-        break
-      } catch (error) {
-        if ((attempt === 0) && (`${error}`.includes("Access token expired"))) {
-          log.warn("netatmo access token has expired, will retry after renewal attempt...")
-          await this.#netatmo_token(log)
-          continue
-        }
-        log.error(error)
-        break
+    try {
+      const last_tick = await this.#get(["settings", "tickrate", "last_tick"])
+      if (last_tick) {
+        log.debug("last tick was", last_tick)
       }
+      await this.#ping()
+      for (const attempt of [0, 1]) {
+        try {
+          await this.#netatmo_data(log)
+          break
+        } catch (error) {
+          if ((attempt === 0) && (`${error}`.includes("Access token expired"))) {
+            log.warn("netatmo access token has expired, will retry after renewal attempt...")
+            await this.#netatmo_token(log)
+            continue
+          }
+          log.error(error)
+          break
+        }
+      }
+      await this.#evaluate(log).catch((error) => log.error(error))
+      await this.#tapo_sync(log)
+      await this.#set(this.#log, ["settings", "tickrate", "last_tick"], tick)
     }
-    await this.#evaluate(log).catch((error) => log.error(error))
-    await this.#tapo_sync(log)
-    await this.#set(this.#log, ["settings", "tickrate", "last_tick"], tick)
-    if (!await this.#get(["settings", "tickrate", "tickrate"])) {
-      log.warn("setting default tickrate as it was not set before")
-      await this.#set(this.#log, ["settings", "tickrate", "tickrate"], 60)
+    finally {
+      const delta = 1000 * (await this.#get(["settings", "tickrate", "tickrate"]) as number)
+      log.debug(`next tick in ${Number.parseInt(`${delta / 1000}`)}s`, new Date(Date.now() + delta).toISOString().slice(0, 16))
+      this.#tick_timeout = setTimeout(() => this.#tick(), delta)
     }
-    const delta = 1000 * (await this.#get(["settings", "tickrate", "tickrate"]) as number)
-    log.debug(`next tick in ${Number.parseInt(`${delta / 1000}`)}s`, new Date(Date.now() + delta).toISOString().slice(0, 16))
-    this.#tick_timeout = setTimeout(() => this.#tick(), delta)
   }
 
   // ===================================================================================================================
@@ -1245,21 +1327,34 @@ export class Server {
     return this.#json({ username, ...user })
   }
 
+  /** Pending logging requests. */
+  readonly #login_pending = new Set<string>()
+
   /** Login user. */
-  async #login(log: Logger, { username, password }: { username: string; password: string }) {
-    log = log.with({ username }).debug("login...")
-    const { password: hashed, ...user } = (await this.#get(["users", username]) ?? {}) as { password: string } & record
-    await delay(3000)
-    if ((!user.username) || (await this.#hash(password) !== hashed)) {
-      log.warn("login failed: invalid credentials")
-      return this.#json({ error: StatusText[Status.Unauthorized] }, { status: Status.Unauthorized })
+  async #login(log: Logger, { ip, username, password }: { ip:Nullable<string>, username: string; password: string }) {
+    try {
+      if (ip) {
+        if (this.#login_pending.has(ip))
+        return this.#json({ error: StatusText[Status.TooManyRequests] }, { status: Status.TooManyRequests })
+        this.#login_pending.add(ip)
+      }
+      log = log.with({ username }).debug("login...")
+      const { password: hashed, ...user } = (await this.#get(["users", username]) ?? {}) as { password: string } & record
+      await delay(2500)
+      if ((!user.username) || (await this.#hash(password) !== hashed)) {
+        log.warn("login failed: invalid credentials")
+        return this.#json({ error: StatusText[Status.Unauthorized] }, { status: Status.Unauthorized })
+      }
+      const session = `${crypto.randomUUID()}${crypto.randomUUID()}`
+      await this.#set(log, ["sessions", session], username)
+      await this.#set(log, ["users", username], { ...user, password: hashed, logged: new Date().toISOString().slice(0, 16) } as user)
+      log.with({ session: session.slice(0, 8) }).info("login success")
+      await this.#history_push(log, { username }, "login")
+      return this.#json(user, { cookie: { name: "gardenia_session", value: session, path: "/" } })
     }
-    const session = `${crypto.randomUUID()}${crypto.randomUUID()}`
-    await this.#set(log, ["sessions", session], username)
-    await this.#set(log, ["users", username], { ...user, password: hashed, logged: new Date().toISOString().slice(0, 16) } as user)
-    log.with({ session: session.slice(0, 8) }).info("login success")
-    await this.#history_push(log, { username }, "login")
-    return this.#json(user, { cookie: { name: "gardenia_session", value: session, path: "/" } })
+    finally {
+      this.#login_pending.delete(ip as string)
+    }
   }
 
   /** Logout user. */
@@ -1677,6 +1772,10 @@ export class Server {
 
   /** Take a picture with Raspberry Pi camera. */
   async #picture(log: Logger) {
+    if (this.#pictures.length + 1 > (await this.#get(["settings", "camera", "max_pictures"]) as number)) {
+      log.error("maximum number of pictures reached")
+      throw new Error("Maximum number of pictures reached")
+    }
     const file = `${new Date().toISOString().replaceAll(/[^\dTZ]/g, "_").replaceAll(/[TZ]/g, "")}.png`
     const storage = await this.#get(["settings", "camera", "storage"]) as Nullable<string> ?? "/tmp"
     log = log.with({ storage }).debug("taking picture...")
@@ -1725,8 +1824,15 @@ export class Server {
     for (const rule of rules) {
       const log = logger.with({ rule: rule.name, priority: rule.priority, target: rule.target }).debug("evaluating rule...")
       if (processed.has(rule.target)) {
-        log.debug("evaluation skipped (alreay processed)")
+        log.debug("evaluation skipped (already triggered by a previous rule)")
         continue
+      }
+      if ((rule.last_hit_t)&&(rule.ratelimit)) {
+        const delta = (Date.now() - rule.last_hit_t)/1000
+        if (delta < rule.ratelimit) {
+          log.with({ratelimit:rule.ratelimit}).debug(`evaluation skipped (already triggered within rate limit, last hit ${delta}s ago)`)
+          continue
+        }
       }
       let ok = rule.conditions.length > 0
       for (const { data, operator, value, delta } of rule.conditions) {
@@ -1775,6 +1881,7 @@ export class Server {
       if (ok) {
         rule.hits++
         rule.last_hit = new Date().toISOString().slice(0, 16)
+        rule.last_hit_t = Date.now()
         await this.#set(log, ["automation", "rules", rule.name], rule)
         await this.#action(log, rule)
         processed.set(rule.target, rule.name)

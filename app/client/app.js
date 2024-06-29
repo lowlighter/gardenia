@@ -25,7 +25,7 @@
           }
         }
         setInterval(() => this.tick(this.tab), 5 * 60 * 1000)
-      } else {
+      } else if (this.status === "unconfigured") {
         this.tab = "setup"
       }
     },

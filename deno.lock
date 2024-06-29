@@ -2,6 +2,7 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "jsr:@libs/crypto": "jsr:@libs/crypto@1.0.4",
       "jsr:@libs/logger@1": "jsr:@libs/logger@1.1.2",
       "jsr:@libs/run@1": "jsr:@libs/run@1.0.1",
       "jsr:@libs/typing@1": "jsr:@libs/typing@1.0.2",
@@ -30,7 +31,8 @@
       "jsr:@std/http": "jsr:@std/http@0.224.4",
       "jsr:@std/http@0.224.4": "jsr:@std/http@0.224.4",
       "jsr:@std/internal@^0.225.1": "jsr:@std/internal@0.225.1",
-      "jsr:@std/io@^0.224.0": "jsr:@std/io@0.224.0",
+      "jsr:@std/io@^0.224.0": "jsr:@std/io@0.224.2",
+      "jsr:@std/io@^0.224.1": "jsr:@std/io@0.224.2",
       "jsr:@std/json@^0.224.0": "jsr:@std/json@0.224.1",
       "jsr:@std/jsonc": "jsr:@std/jsonc@0.224.0",
       "jsr:@std/media-types@^1.0.0-rc.1": "jsr:@std/media-types@1.0.0-rc.1",
@@ -40,10 +42,13 @@
       "jsr:@std/path@1.0.0-rc.1": "jsr:@std/path@1.0.0-rc.1",
       "jsr:@std/path@^0.225.1": "jsr:@std/path@0.225.2",
       "jsr:@std/streams@0.224.2": "jsr:@std/streams@0.224.2",
-      "jsr:@std/streams@^0.224.1": "jsr:@std/streams@0.224.2",
+      "jsr:@std/streams@^0.224.1": "jsr:@std/streams@0.224.4",
       "jsr:@std/streams@^0.224.4": "jsr:@std/streams@0.224.4"
     },
     "jsr": {
+      "@libs/crypto@1.0.4": {
+        "integrity": "518a2a1bf4803de06924c32bbabc17435d1be954377e20257f4846150a1a9906"
+      },
       "@libs/logger@1.1.2": {
         "integrity": "7d718f54c9a5d1c00f570051bee0217e3b282e8c2131144ec55c794a8ebd5d4f"
       },
@@ -151,6 +156,9 @@
           "jsr:@std/bytes@^0.224.0"
         ]
       },
+      "@std/io@0.224.2": {
+        "integrity": "25ecd4f674527d660ab09e571e15eb541e8eb8a4575f2d20bdbf029374a609b5"
+      },
       "@std/json@0.224.1": {
         "integrity": "2a18a8000707190e467f94b2732f6f88a3094db823765d8c58925bb5efeac29a"
       },
@@ -191,7 +199,11 @@
         ]
       },
       "@std/streams@0.224.4": {
-        "integrity": "0601626fbab009b4b4a7407009b4af2fe8e3edcd67630ac66ba7f23542b0d7e1"
+        "integrity": "0601626fbab009b4b4a7407009b4af2fe8e3edcd67630ac66ba7f23542b0d7e1",
+        "dependencies": [
+          "jsr:@std/bytes@^1.0.0-rc.3",
+          "jsr:@std/io@^0.224.1"
+        ]
       }
     }
   },

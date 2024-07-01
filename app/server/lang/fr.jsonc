@@ -283,8 +283,9 @@
   "manual_action_unavailable": "Il n'est pas possible de contrôler manuellement cette cible d'automatisation parce que le serveur n'est pas en mesure de déterminer son status actuel.",
   "manual_action_unavailable_because_target_disabled": "Il n'est pas possible de contrôler manuellement cette cible d'automatisation parce qu'elle est désactivée.",
 
-  // Picture deletion
+  // Pictures
   "picture_delete": "Supprimer la photo",
+  "picture_not_available": "Image non disponible.",
 
   // History
   "history": "Historique",

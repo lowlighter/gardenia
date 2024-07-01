@@ -7,12 +7,33 @@ body > header nav menu .selected svg {
   fill: var(--accent);
 }
 
+body.layout-simple > header:first-of-type > nav {
+  top: 100%;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+menu > li.selected::before {
+  border-left: none;
+  border-right: none;
+}
+
 form:first-child {
   margin-top: 1rem;
 }
 
 form h2:first-child {
   margin-top: 0;
+}
+
+main {
+  padding-top: 4rem;
+}
+
+@media (min-width: 768px) {
+  main {
+    padding: 0;
+  }
 }
 
 /* Flash messages */
@@ -40,6 +61,11 @@ form h2:first-child {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1rem;
+}
+
+.graph {
+  box-sizing: border-box !important;
+  max-width: calc(100vw - 3.5rem);
 }
 
 .flex.filter {
@@ -102,6 +128,12 @@ table tbody tr.selected {
 
 .automation-icon + input[type="radio"] {
   display: none;
+}
+
+/* Data */
+.data {
+  max-width: calc(100vw - 3.5rem);
+  overflow: hidden;
 }
 
 /* Camera */

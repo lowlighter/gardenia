@@ -174,18 +174,20 @@
     /** Refresh settings. */
     async refresh_settings() {
       if (this.user.grant_admin) {
-        this.settings.meta = await fetch("/api/settings/meta").then((response) => response.json())
-        this.settings.visibility = await fetch("/api/settings/visibility").then((response) => response.json())
-        this.settings.tickrate = await fetch("/api/settings/tickrate").then((response) => response.json())
-        this.settings.control = await fetch("/api/settings/control").then((response) => response.json())
-        this.settings.control_test = await fetch("/api/settings/control/test").then((response) => response.json())
-        this.settings.camera = await fetch("/api/settings/camera").then((response) => response.json())
-        this.settings.camera_test = await fetch("/api/settings/camera/test").then((response) => response.json())
-        this.settings.netatmo = await fetch("/api/settings/netatmo").then((response) => response.json())
-        this.settings.netatmo_modules = await fetch("/api/settings/netatmo/modules").then((response) => response.json())
-        this.settings.tapo = await fetch("/api/settings/tapo").then((response) => response.json())
-        this.settings.tapo_modules = await fetch("/api/settings/tapo/modules").then((response) => response.json())
-        this.settings.notes = await fetch("/api/settings/notes").then((response) => response.json())
+        await Promise.allSettled([
+          fetch("/api/settings/meta").then((response) => response.json()).then((data) => this.settings.meta = data),
+          fetch("/api/settings/visibility").then((response) => response.json()).then((data) => this.settings.visibility = data),
+          fetch("/api/settings/tickrate").then((response) => response.json()).then((data) => this.settings.tickrate = data),
+          fetch("/api/settings/control").then((response) => response.json()).then((data) => this.settings.control = data),
+          fetch("/api/settings/camera").then((response) => response.json()).then((data) => this.settings.camera = data),
+          fetch("/api/settings/netatmo").then((response) => response.json()).then((data) => this.settings.netatmo = data),
+          fetch("/api/settings/netatmo/modules").then((response) => response.json()).then((data) => this.settings.netatmo_modules = data),
+          fetch("/api/settings/tapo").then((response) => response.json()).then((data) => this.settings.tapo = data),
+          fetch("/api/settings/tapo/modules").then((response) => response.json()).then((data) => this.settings.tapo_modules = data),
+          fetch("/api/settings/notes").then((response) => response.json()).then((data) => this.settings.notes = data),
+          fetch("/api/settings/control/test").then((response) => response.json()).then((data) => this.settings.control_test = data),
+          fetch("/api/settings/camera/test").then((response) => response.json()).then((data) => this.settings.camera_test = data),
+        ])
       }
     },
     /** Refresh charts. */

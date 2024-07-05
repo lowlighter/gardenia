@@ -130,7 +130,7 @@ export class Server {
   readonly #public = {} as record<string>
 
   /** Server version. */
-  readonly version = "2.2.4" as const
+  readonly version = "2.2.5" as const
 
   // ===================================================================================================================
 
@@ -1816,9 +1816,9 @@ export class Server {
     const bytes = await fetch(`${await this.#get(["settings", "camera", "url"])}/capture`).then((response) => response.bytes()).catch(() => null)
     await ensureDir(storage)
     if (bytes) {
-      Deno.writeFile(`${storage}/${file}`, bytes)
+      await Deno.writeFile(`${storage}/${file}`, bytes)
     } else {
-      Deno.copyFile(fromFileUrl(import.meta.resolve("../client/camera_offline.png")), `${storage}/${file}`)
+      await Deno.copyFile(fromFileUrl(import.meta.resolve("../client/camera_offline.png")), `${storage}/${file}`)
     }
     log.with({ file }).info("picture taken")
     this.#picture_list()

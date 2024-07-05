@@ -52,6 +52,8 @@
   "settings_control_url_desc": "L'adresse du serveur de contrôle. Par exemple, <var>http://0.0.0.0:8080</var>.",
   "settings_control_token": "Jeton d'authentification du serveur de contrôle",
   "settings_control_token_desc": "Le jeton d'authentification du serveur de contrôle. Celui-ci doit être fourni par le serveur de contrôle pour que l'application puisse communiquer avec lui. Vous pouvez le récupérer en accédant à la page web du serveur de contrôle.",
+  "settings_control_version": "Version du serveur de contrôle",
+  "settings_control_version_desc": "Version actuelle de Gardenia installée sur le serveur de contrôle.<br>Il est recommandé de maintenir les deux versions à jour pour éviter tout problème de compatibilité.<br>",
   "settings_control_button": "Enregistrer les paramètres",
   "settings_control_button_test": "Tester la connexion",
 
@@ -153,6 +155,8 @@
   "settings_others_import_desc": "Importer une configuration précédemment sauvegardée.<br>Notez que l'historique ainsi que les données collectées ne seront pas importés.",
   "settings_others_export": "Exporter une configuration",
   "settings_others_export_desc": "Exporter la configuration actuelle de l'application.<br>Notez que l'historique ainsi que les données collectées ne seront pas exportés.",
+  "settings_others_exit_control": "Stopper l'application sur le serveur de contrôle",
+  "settings_others_exit_control_desc": "Stoppe l'application sur le serveur de contrôle. Dépendamment de la configuration du serveur, celle-ci pourrait redémarrer automatiquement.",
   "settings_others_exit": "Stopper l'application",
   "settings_others_exit_desc": "Stoppe l'application. Dépendamment de la configuration du serveur, celle-ci pourrait redémarrer automatiquement.",
   "settings_others_exited": "L'application a été stoppée.<br>Suivant la configuration du serveur, celle-ci pourrait redémarrer automatiquement.",
@@ -286,6 +290,8 @@
   // Pictures
   "picture_delete": "Supprimer la photo",
   "picture_not_available": "Image non disponible.",
+  "picture_download_archive": "Télécharger toutes les photos",
+  "picture_delete_all": "Supprimer toutes les photos",
 
   // History
   "history": "Historique",
@@ -305,6 +311,7 @@
   "history_entry_login": "<var>%%</var> s'est connecté",
   "history_entry_update_data": "<var>%%</var> a mis à jour les données (t=<code>%t</code>)",
   "history_entry_delete_data": "<var>%%</var> a supprimé les données collectées",
+  "history_entry_delete_pictures": "<var>%%</var> a supprimé toutes les photos",
   "history_entry_netatmo_station": "<var>%%</var> a mis à jour les données des modules Netatmo",
   "history_entry_netatmo_token_refresh": "Le jeton d'authentification Netatmo a été actualisé",
   "history_entry_tapo_devices": "<var>%%</var> a mis à jour les données des prise connectées Tapo",
@@ -323,6 +330,9 @@
   "history_entry_delete_picture": "<var>%%</var> a supprimé la photo <var>%file</var>",
   "history_entry_action": "<var>%rule</var>: <var>%target</var> → <var>%action</var> (duration=<code>%duration</code>)",
   "history_entry_action_picture": "<var>%rule</var>: <var>%target</var> → <var>picture</var>",
+  "history_entry_exit": "<var>%%</var> a stoppé l'application",
+  "history_entry_exit_control": "<var>%%</var> a stoppé l'application sur le serveur de contrôle",
+  "history_entry_download_pictures": "<var>%%</var> a téléchargé toutes les photos",
 
   // API messages
   "api_update_pending": "En attente du serveur...",

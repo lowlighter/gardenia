@@ -102,6 +102,9 @@
                 <template x-if="(source !== '/camera')&&(user.grant_admin || user.grant_data)">
                   <button class="danger mt-1" @click="await api($event, source, {callback:() => refresh_pictures(), method:'DELETE'})" type="submit" x-text="lang.picture_delete"></button>
                 </template>
+                <template x-if="(user.grant_admin || user.grant_data)">
+                  <button class="active mt-1" @click="window.open('/api/pictures/export', '_blank')" type="submit" x-text="lang.picture_download_archive"></button>
+                </template>
               </div>
             </div>
           </template>
@@ -717,7 +720,7 @@
           <form x-data="{section:'settings_control', endpoint:'/api/settings/control', data:settings.control}">
             <h2 x-html="lang[section]"></h2>
             <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
-            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'url', required:true, type:'url'}, {name:'token', required:true}]" :key="name">
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'url', required:true, type:'url'}, {name:'token', required:true}, {name:'version', disabled:true}]" :key="name">
               <label>
                 <span x-html="lang[`${section}_${name}`]"></span><br>
                 <small x-html="lang[`${section}_${name}_desc`]"></small>
@@ -747,6 +750,7 @@
               <progress :value="pictures.length" :max="data.max_pictures"></progress>
             </label>
             <footer>
+              <button class="danger mt-1" @click="await api($event, '/api/pictures', {callback:() => refresh_pictures(), method:'DELETE'})" type="submit" x-text="lang.picture_delete_all"></button>
               <button class="active" @click="Object.assign(settings.camera_test, await api($event, `${endpoint}/test`, {method:'GET'}))" x-text="lang[`${section}_button_test`]"></button>
               <button type="submit" @click="Object.assign(data, await api($event, endpoint, {method:'PUT', body:JSON.stringify(data)}))" x-text="lang[`${section}_button`]"></button>
             </footer>
@@ -876,6 +880,10 @@
                 <input id="config-import" type="file">
               </label>
               <button class="attention" @click="await api($event, '/api/import', {callback:() => location.reload(), method:'POST', body:document.querySelector('#config-import')?.files[0]})" x-text="lang[`${section}_import`]"></button>
+            </form>
+            <form class="bd-muted">
+              <small class="muted" x-html="lang[`${section}_exit_control_desc`]"></small><br>
+              <button class="danger" @click="await api($event, '/api/exit/control', {method:'POST'})" x-text="lang[`${section}_exit_control`]"></button>
             </form>
             <form class="bd-muted">
               <small class="muted" x-html="lang[`${section}_exit_desc`]"></small><br>

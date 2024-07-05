@@ -2,6 +2,7 @@
   const data = {
     lang: await fetch("/lang/fr").then((response) => response.json()),
     token: await fetch("/token").then((response) => response.json()),
+    version: await fetch("/version").then((response) => response.text()),
     /** Flash message. */
     flash(text, { type = "default" } = {}) {
       const section = document.querySelector("[data-flash]")

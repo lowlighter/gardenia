@@ -15,6 +15,8 @@ import { command } from "jsr:@libs/run@1"
 import { delay } from "jsr:@std/async/delay"
 import { hash } from "jsr:@libs/crypto/encryption"
 import { toText } from "jsr:@std/streams@^0.224.1"
+import { Tar } from "jsr:@std/archive/tar"
+import { toReadableStream } from "jsr:@std/io/to-readable-stream"
 
 /** User. */
 type user = {
@@ -66,6 +68,7 @@ export class Server {
     this.mode = mode
     ;(async () => {
       try {
+        ;(this as rw).#log.info("server version", this.version)
         ;(this as rw).#log.info("mode", this.mode)
         ;(this as rw).#log.debug("kv-store opening", kv)
         if (kv) {
@@ -97,6 +100,14 @@ export class Server {
         await this.#serve(ports.server)
         if ((this.mode === "app") && (await this.#get(["status"]) === "configured")) {
           await this.#tick()
+          const url = await this.#get(["settings", "control", "url"]) as string
+          if (url) {
+            const version = await fetch(`${url}/version`).then((response) => response.text()).catch((reason) => (this.#log.error(reason), null))
+            if (version) {
+              ;(this as rw).#log.info("control server version", version)
+              await this.#set(this.#log, ["settings", "control", "version"], version)
+            }
+          }
         }
         resolve(this)
       } catch (error) {
@@ -130,7 +141,7 @@ export class Server {
   readonly #public = {} as record<string>
 
   /** Server version. */
-  readonly version = "2.2.5" as const
+  readonly version = "2.4.0" as const
 
   // ===================================================================================================================
 
@@ -156,6 +167,14 @@ export class Server {
             switch (request.method) {
               case "GET":
                 return this.#json({ pong: true })
+              default:
+                return this.#unsupported()
+            }
+          // Version
+          case new URLPattern("/version", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET":
+                return new Response(this.version, { headers: { "Content-Type": "text/plain" } })
               default:
                 return this.#unsupported()
             }
@@ -216,6 +235,18 @@ export class Server {
                   }
                   const { target, status, duration, credentials } = args
                   return this.#json(await this.#tapo_state(log, target, status, duration, credentials))
+                }
+                case "exit": {
+                  if (!allowed) {
+                    return this.#json({ error: Status.Forbidden }, { status: Status.Forbidden })
+                  }
+                  log.warn("EXIT APPLICATION")
+                  try {
+                    return this.#json({ ok: true })
+                  } finally {
+                    await delay(1000)
+                    this.close().then(() => Deno.exit(1))
+                  }
                 }
                 default:
                   return this.#json({ error: StatusText[Status.NotFound] }, { status: Status.NotFound })
@@ -372,6 +403,7 @@ export class Server {
                 const { url, token } = await this.#check(request, {
                   url: is.string().url().min(1).max(255),
                   token: is.string().min(1).max(255),
+                  version: is.string().nullable().optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "control", "url"], url)
                 await this.#set(log, ["settings", "control", "url"], url)
@@ -383,6 +415,7 @@ export class Server {
                 return this.#json({
                   url: await this.#get(["settings", "control", "url"]),
                   token: await this.#get(["settings", "control", "token"]),
+                  version: await this.#get(["settings", "control", "version"]),
                 })
               default:
                 return this.#unsupported()
@@ -395,6 +428,9 @@ export class Server {
                 const token = await this.#get(["settings", "control", "token"]) as string
                 try {
                   const response = await fetch(`${url}/.api/test`, { method: "POST", body: JSON.stringify({ token }), headers: { "Content-Type": "application/json" } })
+                  if (response.status === Status.OK) {
+                    await this.#set(log, ["settings", "control", "version"], await fetch(`${url}/version`).then((response) => response.text()))
+                  }
                   return this.#json(await response.json())
                 } catch (error) {
                   return this.#json({ error: error.message })
@@ -858,6 +894,38 @@ export class Server {
                 this.#authorize(user, "public_pictures")
                 return this.#json(this.#pictures)
               }
+              case "DELETE": {
+                this.#authorize(user, { grant_data: true })
+                await this.#history_push(log, user, "delete_pictures")
+                const storage = await this.#get(["settings", "camera", "storage"]) as string
+                for (const picture of this.#pictures) {
+                  await Deno.remove(resolve(storage, `${picture}.png`))
+                }
+                await this.#picture_list()
+                return this.#json({})
+              }
+              default:
+                return this.#unsupported()
+            }
+          case new URLPattern("/api/pictures/export", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "GET": {
+                this.#authorize(user, { grant_data: true })
+                await this.#history_push(log, user, "download_pictures")
+                await this.#picture_list()
+                const storage = await this.#get(["settings", "camera", "storage"]) as string
+                const archive = new Tar()
+                for (const picture of this.#pictures) {
+                  const filepath = resolve(storage, `${picture}.png`)
+                  this.#log.with({ filepath }).info(`exporting picture`)
+                  await archive.append(`./${picture}.png`, { filePath: filepath })
+                }
+                return new Response(toReadableStream(archive.getReader()), {
+                  headers: {
+                    "Content-Disposition": `attachment; filename="gardenia_pictures.tar"`,
+                  },
+                })
+              }
               default:
                 return this.#unsupported()
             }
@@ -1002,7 +1070,35 @@ export class Server {
                 try {
                   return this.#json({ ok: true })
                 } finally {
+                  log.warn("EXIT APPLICATION")
                   this.close().finally(() => Deno.exit(1))
+                }
+              }
+              default:
+                return this.#unsupported()
+            }
+          case new URLPattern("/api/exit/control", url.origin).test(url.href.replace(url.search, "")):
+            switch (request.method) {
+              case "POST": {
+                this.#authorize(user, { grant_admin: true })
+                const url = await this.#get(["settings", "control", "url"]) as string
+                const token = await this.#get(["settings", "control", "token"]) as string
+                try {
+                  const response = await fetch(`${url}/.api/exit`, { method: "POST", body: JSON.stringify({ token }), headers: { "Content-Type": "application/json" } })
+                  if (response.status !== Status.OK) {
+                    return this.#json({ error: StatusText[Status.InternalServerError] })
+                  }
+                  await this.#history_push(log, user, "exit_control")
+                  log.warn("EXIT CONTROL APPLICATION")
+                  await delay(15000)
+                  await this.#set(log, ["settings", "control", "version"], await fetch(`${url}/version`).then((response) => response.text()))
+                  return this.#json({
+                    url: await this.#get(["settings", "control", "url"]),
+                    token: await this.#get(["settings", "control", "token"]),
+                    version: await this.#get(["settings", "control", "version"]),
+                  })
+                } catch (error) {
+                  return this.#json({ error: error.message })
                 }
               }
               default:
@@ -1179,12 +1275,27 @@ export class Server {
   /** Close server. */
   async close() {
     this.#log.debug("closing server")
-    this.#stream_process?.kill("SIGKILL")
-    await this.#stream_process?.status
-    await this.#server?.shutdown()
     clearTimeout(this.#tick_timeout)
-    this.#kv.close()
-    this.#log.info("closed server")
+    try {
+      this.#stream_process?.kill("SIGKILL")
+      await this.#stream_process?.status
+      this.#log.info("closed stream process")
+    } catch (error) {
+      this.#log.error(error)
+    }
+    try {
+      await this.#server?.shutdown()
+      this.#log.info("closed http server")
+    } catch (error) {
+      this.#log.error(error)
+    }
+    try {
+      this.#kv.close()
+      this.#log.info("closed kv-store")
+    } catch (error) {
+      this.#log.error(error)
+    }
+    this.#log.info("closed application")
   }
 
   // ===================================================================================================================

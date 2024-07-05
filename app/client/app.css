@@ -37,9 +37,15 @@ main {
 }
 
 /* Flash messages */
+[data-flash] {
+  margin-bottom: 0;
+  pointer-events: none;
+}
+
 .flash {
   position: relative;
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .flash .timer {

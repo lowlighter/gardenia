@@ -9,6 +9,8 @@ from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder
 from picamera2.outputs import FileOutput
 
+picam2 = None
+
 class StreamingOutput(io.BufferedIOBase):
   def __init__(self):
     self.frame = None
@@ -26,7 +28,10 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
       self.send_response(200)
       self.send_header('Content-Type', 'application/json')
       self.end_headers()
-      self.wfile.write(b'{"pong": true}')
+      if picam2 is not None:
+        self.wfile.write(b'{"pong": true}')
+      else:
+        self.wfile.write(b'{"pong": false}')
       return
 
     # Capture

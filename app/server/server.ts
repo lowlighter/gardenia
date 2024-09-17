@@ -141,7 +141,7 @@ export class Server {
   readonly #public = {} as record<string>
 
   /** Server version. */
-  readonly version = "2.4.0" as const
+  readonly version = "2.5.0" as const
 
   // ===================================================================================================================
 
@@ -444,13 +444,19 @@ export class Server {
             switch (request.method) {
               case "PUT": {
                 this.#authorize(user, { grant_admin: true })
-                const { url, storage } = await this.#check(request, {
+                const { url, storage, flip_horizontally, flip_vertically } = await this.#check(request, {
                   url: is.string().url().min(1).max(255),
                   storage: is.string().min(1).max(255),
+                  flip_horizontally: is.boolean().nullable(),
+                  flip_vertically: is.boolean().nullable(),
                   max_pictures: is.number().optional(), // Read-only
                 })
                 await this.#history_update_settings(log, user, ["settings", "camera", "url"], url)
                 await this.#set(log, ["settings", "camera", "url"], url)
+                await this.#history_update_settings(log, user, ["settings", "camera", "flip_horizontally"], flip_horizontally)
+                await this.#set(log, ["settings", "camera", "flip_horizontally"], flip_horizontally)
+                await this.#history_update_settings(log, user, ["settings", "camera", "flip_vertically"], flip_vertically)
+                await this.#set(log, ["settings", "camera", "flip_vertically"], flip_vertically)
                 await this.#history_update_settings(log, user, ["settings", "camera", "storage"], storage)
                 await this.#set(log, ["settings", "camera", "storage"], resolve(storage))
               }
@@ -459,6 +465,8 @@ export class Server {
                 return this.#json({
                   url: await this.#get(["settings", "camera", "url"]),
                   storage: await this.#get(["settings", "camera", "storage"]),
+                  flip_horizontally: await this.#get(["settings", "camera", "flip_horizontally"]),
+                  flip_vertically: await this.#get(["settings", "camera", "flip_vertically"]),
                   max_pictures: await this.#get(["settings", "camera", "max_pictures"]),
                 })
               default:
@@ -1195,6 +1203,8 @@ export class Server {
                     [["settings", "control", "token"], await this.#get(["settings", "control", "token"])],
                     [["settings", "camera", "url"], await this.#get(["settings", "camera", "url"])],
                     [["settings", "camera", "storage"], await this.#get(["settings", "camera", "storage"])],
+                    [["settings", "camera", "flip_horizontally"], await this.#get(["settings", "camera", "flip_horizontally"])],
+                    [["settings", "camera", "flip_vertically"], await this.#get(["settings", "camera", "flip_vertically"])],
                     [["settings", "camera", "max_pictures"], await this.#get(["settings", "camera", "max_pictures"])],
                     [["settings", "netatmo", "client_id"], await this.#get(["settings", "netatmo", "client_id"])],
                     [["settings", "netatmo", "client_secret"], await this.#get(["settings", "netatmo", "client_secret"])],

@@ -160,3 +160,15 @@ table tbody tr.selected {
     max-width: 720px;
   }
 }
+
+.camera img.flip-vertical {
+  transform: scaleY(-1);
+}
+
+.camera img.flip-horizontal {
+  transform: scaleX(-1);
+}
+
+.camera img.flip-vertical.flip-horizontal {
+  transform: scaleX(-1) scaleY(-1);
+}

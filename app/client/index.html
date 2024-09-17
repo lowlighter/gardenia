@@ -84,7 +84,7 @@
           <template x-if="user.logged || settings.visibility.public_camera || settings.visibility.public_pictures">
             <div class="camera" x-data="{source:'/camera'}">
               <div class="camera-wrapper">
-                <img :src="source" :alt="lang.picture_not_available">
+                <img :class="{'flip-vertical':settings.camera.flip_vertically, 'flip-horizontal':settings.camera.flip_horizontally}" :src="source" :alt="lang.picture_not_available">
               </div>
               <div class="centered">
                 <template x-if="user.logged || settings.visibility.public_pictures">
@@ -736,10 +736,13 @@
           <form x-data="{section:'settings_camera', endpoint:'/api/settings/camera', data:settings.camera}">
             <h2 x-html="lang[section]"></h2>
             <div class="muted mb-1" x-html="lang[`${section}_desc`]"></div>
-            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'url', required:true, type:'url'}, {name:'storage', required:true}]" :key="name">
+            <template x-for="({name, disabled, required, placeholder, type}) in [{name:'url', required:true, type:'url'}, {name:'flip_horizontally', type:'checkbox'}, {name:'flip_vertically', type:'checkbox'}, {name:'storage', required:true}]" :key="name">
               <label>
                 <span x-html="lang[`${section}_${name}`]"></span><br>
                 <small x-html="lang[`${section}_${name}_desc`]"></small>
+                <template x-if="type === 'checkbox'">
+                  <br>
+                </template>
                 <input x-model="data[name]" :disabled="disabled" :required="required" :placeholder="placeholder" :type="type ?? 'text'">
               </label>
             </template>

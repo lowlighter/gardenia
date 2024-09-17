@@ -59,6 +59,7 @@
       "@libs/run@1.0.1": {
         "integrity": "b22b34ae7629179568c44efecb60f69310af013f65c96e447a5ee8743ff53f42",
         "dependencies": [
+          "jsr:@libs/logger@1",
           "jsr:@libs/typing@2",
           "jsr:@std/async@0.224.1",
           "jsr:@std/streams@0.224.2"

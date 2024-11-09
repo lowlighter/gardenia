@@ -362,5 +362,132 @@
   // Ping
   "ping_internet": "Internet",
   "ping_control": "Serveur de contrôle",
-  "ping_camera": "Caméra"
+  "ping_camera": "Caméra",
+
+  // Docs
+  "docs": "Manuel d'utilisation",
+  "docs_html": [
+    "<p>",
+    "Cette section contient des informations sur l'utilisation de <i>Gardenia</i>.",
+    "</p>"
+  ],
+  "docs_install_ios": "Installation sur iOS",
+  "docs_install_ios_html": [
+    "<p>",
+    "<i>Gardenia</i> est une application web ce qui signifie qu'elle peut être accessible depuis n'importe quel appareil disposant d'un navigateur web.",
+    "Sur iOS (iPhone, iPad, etc.), vous pouvez ajouter <i>Gardenia</i> à votre écran d'accueil pour une expérience similaire à une application native.",
+    "</p>",
+    "<p>",
+    "Pour plus d'informations, vous pouvez lire la page d'aide <a href=\"https://support.apple.com/fr-ca/guide/iphone/iph42ab2f3a7/ios\">Ajouter un signet à un site web dans Safari sur l'iPhone</a>.",
+    "</p>"
+  ],
+  "docs_home": "Page d'accueil",
+  "docs_home_html": [
+    "<p>",
+    "Les fonctionnalités disponibles dépendent des privilèges de l'utilisateur connecté.",
+    "</p>",
+    "<p>",
+    "Si une caméra est connectée, vous pourrez visualiser le retour vidéo et les images capturées.",
+    "</p>",
+    "<p>",
+    "L'état actuel des modules de la serre connectée est affiché. Si vous avez les privilèges d'automatisation, vous pourrez également les contrôler manuellement.",
+    "</p>",
+    "<p>",
+    "Les données météorologiques affichent les informations collectées par les différents modules de la serre connectée de la journée. Il est possible de consulter une plage temporelle spécifique.",
+    "</p>",
+    "<p>",
+    "Vous pouvez récupérer ces données de façon automatisée en utilisant l'URL suivante: <code>/api/data</code> (les paramètres <code>from</code> et <code>to</code> acceptent des date au format ISO pour restreindre la plage temporelle requêtée).",
+    "</p>",
+    "<p>",
+    "L'historique permet de consulter les changements effectués sur <i>Gardenia</i>, que ce soit des modifications manuelles ou automatisées.",
+    "Les administrateurs peuvent également voir les entrées du journal d'activité.",
+    "</p>"
+  ],
+  "docs_automation": "Automatisation",
+  "docs_automation_html": [
+    "<p>",
+    "Aucune connaissances en programmation n'est requise pour configurer des scénarios et des règles d'automatisation.",
+    "</p>",
+    "<p>",
+    "Une règle est définie par :",
+    "<ul>",
+    "<li>Une cible (un module de la serre, une caméra, etc.)</li>",
+    "<li>Une action (allumer, éteindre)<ul><li>Si votre action est d'allumer une cible, il est généralement aussi possible de spécifier une durée d'activation.</li></ul></li>",
+    "<li>Une priorité</li>",
+    "<li>Des conditions d'activation<ul><li>Une limite de déclenchement peut être définie pour éviter que la règle ne soit exécutée trop souvent.</li></ul></li>",
+    "</ul>",
+    "</p>",
+    "<p>",
+    "Une règle n'est exécutée que si toutes les conditions sont remplies ET si une règle avec une priorité plus élevée n'a pas été exécutée avant.",
+    "Vous pouvez donc forcer un module à rester allumé ou éteint en exploitant la priorité des règles.",
+    "</p>",
+    "<p>",
+    "Parmi les opérandes, la plupart des données météorologiques peuvent être utilisées (température, humidité, CO2, pression, bruit, pluie, etc.).",
+    "Vous pouvez aussi définir des plages temporelles (veuillez vous référez à l'heure UTC affichée en bas à droite).",
+    "</p>",
+    "<p>",
+    "Les règles d'automatisation sont évaluées toutes les minutes, et chaque exécution est consignée dans l'historique.",
+    "</p>",
+    "<p>",
+    "<b class=\"danger\">Attention, cela signifie que si vous changez manuellement l'état d'un module, une règle d'automatisation active pourrait rechanger son état peu de temps après !</b>",
+    "</p>",
+    "<p>",
+    "Il est possible de désactiver une règle d'automatisation à tout moment, afin de la garder en mémoire sans pour autant la supprimer complètement.",
+    "</p>"
+  ],
+  "docs_users": "Comptes utilisateurs",
+  "docs_users_html": [
+    "<p>",
+    "Les utilisateurs avec les privilèges d'administration peuvent gérer <i>Gardenia</i> dans leur entièreté.",
+    "C'est-à-dire qu'ils peuvent changer les paramètres de l'application, ajouter de nouveaux utilisateurs, modifier les droits d'accès, réinitialiser les mots de passe (y compris ceux des autres administrateur).",
+    "</p>",
+    "<p>",
+    "<b class=\"danger\">Si votre <i>Gardenia</i> est accessible depuis l'internet, assurez-vous d'avoir un mot de passe assez robuste.</b>",
+    "</p>",
+    "<p>",
+    "Les utilisateurs avec les privilèges d'automatisation peuvent configurer des scénarios et des règles d'automatisation, et peuvent également contrôler manuellement les modules de la serre connectée.",
+    "</p>",
+    "<p>",
+    "Les utilisateurs avec les privilèges de données peuvent consulter davantage de données en plus des données météorologiques et les images capturées par la caméra, et peuvent également manuellement contrôler le rafrîchissement des données.",
+    "</p>",
+    "<p>",
+    "La plupart des actions effectuées par les utilisateurs sont consignés dans l'historique ce qui offre une certaine traçabilité.",
+    "</p>"
+  ],
+  "docs_settings": "Paramètres de l'application",
+  "docs_settings_html": [
+    "<p>",
+    "Certains paramètres ne devraient pas être modifiés à moins d'être un utilisateur avancé (tels que les clés d'authentification à certains services, les addresses réseaux, les modules de la serre connecté, etc.).",
+    "Toutefois, certains réglages peuvent être modifiés par les administrateurs facilement (comme le nom de la serre, la visibilité en tant qu'utilisateur, le taux de rafraîchissement, etc.).",
+    "</p>"
+  ],
+  "docs_status": "Statut de la serre connectée",
+  "docs_status_html": [
+    "<p>",
+    "L'état de la serre connectée est affiché en bas à droite de la page par trois icônes.",
+    "</p>"
+  ],
+  "docs_status_internet": "Connexion du serveur principal à l'internet",
+  "docs_status_internet_html": [
+    "<p>",
+    "Cette première icône indique si le serveur principal est connecté à l'internet.",
+    "Sans accès internet, les données Netatmo et toutes les fonctionnalités requérant une connexion à des services externes ne seront pas disponibles.",
+    "</p>"
+  ],
+  "docs_status_camera": "Connectivité à la caméra",
+  "docs_status_camera_html": [
+    "<p>",
+    "Cette seconde icône indique si le retour vidéo de la caméra est disponible.",
+    "Si la caméra est bien connectée mais qu'aucune image n'est affichée, vous pouvez essayer de <code>Stopper l'application sur le serveur de contrôle</code> afin d'essayer de la redémarrer.",
+    "Si cela ne fonctionne toujours pas, vérifiez que la caméra est bien connectée physiquement.",
+    "</p>"
+  ],
+  "docs_status_control_server": "Connectivité au serveur de contrôle",
+  "docs_status_control_server_html": [
+    "<p>",
+    "Cette dernière icône indique si le serveur de contrôle est accessible (ceci n'est pertinent que si votre <i>Gardenia</i> est déployé en deux composantes).",
+    "Si votre serveur de contrôle est inaccessible, il ne sera plus possible d'intéragir avec les modules de la serre connectée, et les règles d'automatisation ne pourront plus être évaluées.",
+    "Toutefois, la collecte des données Netatmo et l'affichage des données météorologiques resteront disponibles.",
+    "</p>"
+  ]
 }

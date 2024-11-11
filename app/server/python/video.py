@@ -39,15 +39,13 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
       try:
         if picam2 is None:
           raise Exception("Camera not initialized")
-        image_stream = BytesIO()
-        picam2.capture_to_stream(image_stream, format='png')
-        image_stream.seek(0)
-        image = image_stream.getvalue()
+        output.condition.wait()
+        frame = output.frame
         self.send_response(200)
-        self.send_header('Content-Type', 'image/png')
-        self.send_header('Content-Length', len(image))
+        self.send_header('Content-Type', 'image/jpeg')
+        self.send_header('Content-Length', len(frame))
         self.end_headers()
-        self.wfile.write(image)
+        self.wfile.write(frame)
       except Exception as e:
         print(e)
         pass

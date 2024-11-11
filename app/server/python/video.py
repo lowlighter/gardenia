@@ -39,8 +39,9 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
       try:
         if picam2 is None:
           raise Exception("Camera not initialized")
-        output.condition.wait()
-        frame = output.frame
+        with output.condition:
+          output.condition.wait()
+          frame = output.frame
         self.send_response(200)
         self.send_header('Content-Type', 'image/jpeg')
         self.send_header('Content-Length', len(frame))

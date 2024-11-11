@@ -66,8 +66,10 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
           self.end_headers()
           self.wfile.write(frame)
           self.wfile.write(b'\r\n')
-      except:
+      except Exception as e:
+        print(e)
         pass
+      return
 
     self.send_response(404)  # 404 Not Found status
     self.send_header('Content-Type', 'text/html')

@@ -37,14 +37,17 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
     # Capture
     if self.path == '/capture':
       try:
-        self.send_response(200)
-        self.send_header('Content-Type', 'image/png')
+        if picam2 is None:
+          raise Exception("Camera not initialized")
         image_stream = BytesIO()
         picam2.capture_to_stream(image_stream, format='png')
         image_stream.seek(0)
-        self.send_header('Content-Length', len(image_stream.getvalue()))
+        image = image_stream.getvalue()
+        self.send_response(200)
+        self.send_header('Content-Type', 'image/png')
+        self.send_header('Content-Length', len(image))
         self.end_headers()
-        self.wfile.write(image_stream.getvalue())
+        self.wfile.write(image)
       except Exception as e:
         print(e)
         pass
@@ -53,6 +56,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
     # Stream
     if self.path == '/stream':
       try:
+        if picam2 is None:
+          raise Exception("Camera not initialized")
         self.send_response(200)
         self.send_header('Age', 0)
         self.send_header('Cache-Control', 'no-cache, private')
@@ -74,7 +79,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         pass
       return
 
-    self.send_response(404)  # 404 Not Found status
+    self.send_response(404)
     self.send_header('Content-Type', 'text/html')
     self.end_headers()
     self.wfile.write(b'Not Found')

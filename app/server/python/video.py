@@ -45,7 +45,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         self.send_header('Content-Length', len(image_stream.getvalue()))
         self.end_headers()
         self.wfile.write(image_stream.getvalue())
-      except:
+      except Exception as e:
+        print(e)
         self.send_response(500)
         self.end_headers()
         pass
@@ -70,7 +71,8 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
           self.end_headers()
           self.wfile.write(frame)
           self.wfile.write(b'\r\n')
-      except:
+      except Exception as e:
+        print(e)
         self.send_response(500)
         self.end_headers()
         pass

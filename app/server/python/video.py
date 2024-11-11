@@ -47,8 +47,6 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         self.wfile.write(image_stream.getvalue())
       except Exception as e:
         print(e)
-        self.send_response(500)
-        self.end_headers()
         pass
       return
 
@@ -73,8 +71,6 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
           self.wfile.write(b'\r\n')
       except Exception as e:
         print(e)
-        self.send_response(500)
-        self.end_headers()
         pass
       return
 
